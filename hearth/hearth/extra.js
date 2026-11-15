@@ -36,7 +36,7 @@ module.exports=({app,q,need,err,bad,wss})=>{
   await q('insert into channels(server_id,name,kind) values($1,$2,$3)',[+sid,n,kind]);res.json({})});
  // friends (a<b normalized)
  app.get('/api/friends',need,async(req,res)=>{const on=new Set([...wss().clients].map(c=>c.uid));
-  res.json((await q('select u.id,u.username,u.theme,u.status pst,u.cstatus,f.status,f.by from friends f join users u on u.id=case when f.a=$1 then f.b else f.a end where f.a=$1 or f.b=$1',[req.u.id]))
+  res.json((await q('select u.id,u.username,u.theme,u.adeco,u.status pst,u.cstatus,f.status,f.by from friends f join users u on u.id=case when f.a=$1 then f.b else f.a end where f.a=$1 or f.b=$1',[req.u.id]))
    .map(({pst,...r})=>({...r,ps:on.has(r.id)&&pst!=='invisible'?pst||'online':'offline'})))});
  app.post('/api/friends',need,async(req,res)=>{const[o]=await q('select id,allow_fr from users where lower(username)=lower($1) and not banned',[String(req.body.username||'')]);
   if(!o||o.id===req.u.id)return err(res,'User not found',404);if(o.allow_fr===false)return err(res,'This user isn\'t accepting friend requests.',403);const a=Math.min(o.id,req.u.id),b=Math.max(o.id,req.u.id);

@@ -1,5 +1,5 @@
 // Profile customisation: display name, pronouns, profile effects/themes/colours, server tags.
-const HEX=/^#[0-9a-f]{6}$/i,EFFECTS=['none','bubbles','sparkles','snow','embers','hearts','stars','aurora','rain'],
+const HEX=/^#[0-9a-f]{6}$/i,DECOS=['none','halo','crown','cat','devil','neon','ember','sparkle','sweat','thorns','frost','glitch','hearts'],EFFECTS=['none','bubbles','sparkles','snow','embers','hearts','stars','aurora','rain'],
  ICONS=['flame','star','bolt','heart','skull','leaf','moon','crown','gem','paw','ghost','music'];
 module.exports=({app,q,need,err,bad,THEMES,wss})=>{
  const clean=(v,max)=>String(v==null?'':v).replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/\s+/g,' ').trim().slice(0,max);
@@ -8,8 +8,9 @@ module.exports=({app,q,need,err,bad,THEMES,wss})=>{
  app.put('/api/profile2',need,async(req,res)=>{const b=req.body||{},dname=clean(b.dname,32),pronouns=clean(b.pronouns,30);
   if(dname&&bad(dname))return err(res,'That display name isn\'t allowed.');if(pronouns&&bad(pronouns))return err(res,'Those pronouns aren\'t allowed.');
   if(!THEMES.includes(b.theme))return err(res,'Bad theme');if(!EFFECTS.includes(b.peffect))return err(res,'Bad effect');
+  if(b.adeco!=null&&!DECOS.includes(b.adeco))return err(res,'Bad decoration');
   for(const c of[b.pc1,b.pc2])if(c!=null&&!HEX.test(c))return err(res,'Bad color');
-  await q('update users set dname=$1,pronouns=$2,theme=$3,peffect=$4,pc1=$5,pc2=$6 where id=$7',[dname||null,pronouns||null,b.theme,b.peffect,b.pc1?b.pc1.toLowerCase():null,b.pc2?b.pc2.toLowerCase():null,req.u.id]);
+  await q('update users set dname=$1,pronouns=$2,theme=$3,peffect=$4,pc1=$5,pc2=$6,adeco=$8 where id=$7',[dname||null,pronouns||null,b.theme,b.peffect,b.pc1?b.pc1.toLowerCase():null,b.pc2?b.pc2.toLowerCase():null,req.u.id,b.adeco&&b.adeco!=='none'?b.adeco:null]);
   ping();res.json({})});
  // server owner defines the tag (2-4 letters/numbers + icon + colour)
  app.put('/api/servers/:id/tag',need,async(req,res)=>{const id=+req.params.id,b=req.body||{};
