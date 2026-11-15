@@ -14,7 +14,7 @@ const BD={
  elitebug:{n:'Elite Bug Reporter',g:'linear-gradient(120deg,#a855f7,#6366f1 55%,#f59e0b)',d:'Reported many important bugs.',i:S('<ellipse cx="8" cy="9.500" rx="3" ry="3.800" fill="currentColor" fill-opacity=".25"/><path d="M6.500 5.800C6.500 4.700 7.100 4 8 4s1.500.7 1.500 1.800M5 8.500H2.500M13.500 8.500H11M5.200 11.500 3.200 13M10.800 11.500l2 1.500M8 6.500v6.600"/><path d="m12.500 1 .6 1.200 1.300.2-.95.9.2 1.300-1.150-.6-1.150.6.2-1.300-.95-.9 1.300-.2z" fill="currentColor" stroke="none"/>')},
  bughunter:{n:'Bug Hunter',c:'#b91c1c',d:'Tracks down the nastiest bugs.',i:S('<circle cx="8" cy="8" r="5.200"/><path d="M8 1.200v3M8 11.800v3M1.200 8h3M11.800 8h3"/><ellipse cx="8" cy="8.300" rx="1.600" ry="2" fill="currentColor"/><path d="M6.700 6.400c0-.7.5-1.200 1.300-1.200s1.300.5 1.300 1.200" stroke-width="1.100"/>')}
 };
-Object.keys(BD).forEach(k=>{BADGES[k]=BD[k].n});Object.keys(BD).forEach(k=>{BDESC[k]=BD[k].d});
+Object.keys(BD).forEach(k=>{BADGES[k]=BD[k].n});
 window.BD=BD;
 window.badge=function(k){const b=BD[k]||{n:k},s=el('span','bd bi'+(b.g?' bg':''));if(b.g)s.style.setProperty('--bgd',b.g);else if(b.c)s.style.background=b.c;
  s.title=b.n;if(b.i){const i=el('span','bic');i.innerHTML=b.i;s.append(i)}s.append(el('span','',b.n));return s};

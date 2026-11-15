@@ -16,6 +16,7 @@ const STAT={online:'Online',idle:'Idle',dnd:'Do Not Disturb',invisible:'Invisibl
 const stc=s=>s==='online'?' on':s==='idle'?' idle':s==='dnd'?' dnd':'';
 const myPs=()=>me.status==='invisible'?'offline':(me.status||'online');
 const BDESC={staff:'Part of the Hearth staff team.',og:'One of the very first people here.',early:'Joined during early access.',verified:'A verified account.',supporter:'Helps keep Hearth running.'};
+Object.keys(BD).forEach(k=>{BDESC[k]=BD[k].d});
 const btn=(t,cls,fn)=>{const b=el('button','btn'+(cls?' '+cls:''),t);b.type='button';if(fn)b.onclick=fn;return b};
 const initials=n=>[...n.trim()][0].toUpperCase();
 const goHome=()=>{cur='home';open(null,'');members()};
@@ -76,14 +77,35 @@ async function stopMod(s){try{if(room&&room.server_id===s.id)vleave();await api(
 // ---------- server settings (owner, or staff with admin access) ----------
 function serverSettings(sid,tab='ov'){const D=dialog('640px');D.box.classList.add('wide');D.foot.style.display='none';const S=()=>servers.find(x=>x.id===sid);if(!S())return D.close();
  const tabs=el('div','sstabs'),pane=el('div','sspane');D.body.append(tabs,pane);
- const T=[['ov','Overview'],['ch','Channels'],['mb','Members'],['dz','Danger Zone']],go=k=>{tab=k;draw1()};
+ const T=[['ov','Overview'],['nt','Notifications'],['md','Moderation'],['cm','Community'],['ch','Channels'],['mb','Members'],['dz','Danger Zone']],go=k=>{tab=k;draw1()};
  const run=async(fn,msg)=>{try{await fn();await refresh();msg&&toast(msg,1);draw1()}catch(e){fail(e)}};
- function draw1(){const s=S();if(!s){D.close();return}D.set('Server Settings',s.name);tabs.replaceChildren();T.forEach(([k,n])=>{const b=el('button','sst'+(tab===k?' on':''),n);b.type='button';b.onclick=()=>go(k);tabs.append(b)});pane.replaceChildren();
+ function draw1(){const s=S();if(!s){D.close();return}D.set('Server Settings',s.name);D.body.append(tabs,pane);D.foot.style.display='none';tabs.replaceChildren();T.forEach(([k,n])=>{const b=el('button','sst'+(tab===k?' on':''),n);b.type='button';b.onclick=()=>go(k);tabs.append(b)});pane.replaceChildren();
   if(s.is_mod||(s.owner_id!==me.id&&isStaff()))pane.append(el('div','modnote','🛡 Staff access — you have full admin control here. Members can\'t see you in the member list.'));
-  if(tab==='ov'){const i=el('input');i.value=s.name;i.maxLength=30;const f=field('Server name',i),sv=btn('Save Name','',async()=>{f.err();try{await api('servers/'+s.id,'PUT',{name:i.value});await refresh();toast('Server renamed',1);draw1()}catch(e){f.err(e.message)}});
-   const code=el('input');code.value=s.invite;code.readOnly=true;code.onfocus=()=>code.select();const row=el('div','copyrow');row.append(code,btn('Copy','',()=>{copyTxt(s.invite);toast('Invite copied',1)}),btn('New code','g',()=>run(async()=>{await api('servers/'+s.id+'/invite','POST')},'Invite code reset — the old one no longer works')));
-   const tg=el('div','trow');tg.append(tagChip(s.tag?{tag:s.tag,tag_icon:s.tag_icon,tag_color:s.tag_color}:null)||el('span','mu','No tag set'),btn(s.tag?'Edit Tag':'Create Tag','g',()=>tagDialog(s,draw1)));
-   pane.append(f,sv,field('Invite code',row),field('Server tag',tg))}
+  if(['ov','nt','md','cm'].includes(tab)){const ST=s.settings||{},save=async(o,m)=>{try{await api('servers/'+s.id+'/settings','PUT',o);Object.assign(s.settings=s.settings||{},o);m&&toast(m,1)}catch(e){fail(e)}},
+    tg2=(k,l,sub,def)=>{const r=el('div','tgl2'),t=el('div'),b=el('button','sw'+((k in ST?ST[k]:def)?' on':''));b.type='button';t.append(el('b','',l),el('small','mu',sub||''));b.append(el('i'));b.onclick=()=>{const v=!b.classList.contains('on');b.classList.toggle('on',v);save({[k]:v})};r.append(t,b);return r},
+    sl=(k,l,sub,opts,def)=>{const r=el('div','tgl2'),t=el('div'),S=el('select','sel2');t.append(el('b','',l),el('small','mu',sub||''));opts.forEach(([v,n])=>{const o=el('option','',n);o.value=v;S.append(o)});S.value=String(k in ST?ST[k]:def);S.onchange=()=>save({[k]:S.value});r.append(t,S);return r},
+    tx=(k,l,max,area)=>{const i=el(area?'textarea':'input','sta');i.value=ST[k]||'';i.maxLength=max;i.onchange=()=>save({[k]:i.value},'Saved');return field(l,i)},
+    card=(...n)=>{const c=el('div','card2');c.append(...n);return c},nv=k=>PREFS[k];
+   if(tab==='nt'){const key='hearth.sn.'+s.id;let sn={};try{sn=JSON.parse(localStorage.getItem(key)||'{}')}catch{}const ss=(o)=>{Object.assign(sn,o);try{localStorage.setItem(key,JSON.stringify(sn))}catch{}},
+     lt=(k,l,sub)=>{const r=el('div','tgl2'),t=el('div'),b=el('button','sw'+(sn[k]?' on':''));b.type='button';t.append(el('b','',l),el('small','mu',sub||''));b.append(el('i'));b.onclick=()=>{const v=!b.classList.contains('on');b.classList.toggle('on',v);ss({[k]:v})};r.append(t,b);return r},
+     ls=(k,l,sub,opts)=>{const r=el('div','tgl2'),t=el('div'),S=el('select','sel2');t.append(el('b','',l),el('small','mu',sub||''));opts.forEach(([v,n])=>{const o=el('option','',n);o.value=v;S.append(o)});S.value=sn[k]||opts[0][0];S.onchange=()=>ss({[k]:S.value});r.append(t,S);return r};
+    pane.append(el('small','mu','These are your own notification settings for this server and are saved in this browser.'),
+     card(el('h3','ush','Server notification settings'),ls('lvl','Notify me for','',[['all','All messages'],['mentions','Only @mentions'],['none','Nothing']]),lt('muted','Mute server','Silences all notifications from this server.'),lt('noeveryone','Suppress @everyone and @here',''),lt('noroles','Suppress all role @mentions',''),lt('nohigh','Suppress highlights',''),lt('mobile','Mobile push notifications','')),
+     card(el('h3','ush','Hide'),lt('hidemuted','Hide muted channels','Muted channels disappear from the channel list.')))}
+   if(tab==='ov'){const i=el('input');i.value=s.name;i.maxLength=30;const f=field('Server name',i),sv=btn('Save Name','',async()=>{f.err();try{await api('servers/'+s.id,'PUT',{name:i.value});await refresh();toast('Server renamed',1);draw1()}catch(e){f.err(e.message)}});
+    const code=el('input');code.value=s.invite;code.readOnly=true;code.onfocus=()=>code.select();const row=el('div','copyrow');row.append(code,btn('Copy','',()=>{copyTxt(s.invite);toast('Invite copied',1)}),btn('New code','g',()=>run(async()=>{await api('servers/'+s.id+'/invite','POST')},'Invite code reset — the old one no longer works')));
+    const tg=el('div','trow');tg.append(tagChip(s.tag?{tag:s.tag,tag_icon:s.tag_icon,tag_color:s.tag_color}:null)||el('span','mu','No tag set'),btn(s.tag?'Edit Tag':'Create Tag','g',()=>tagDialog(s,draw1)));
+    const sc=el('input');sc.type='color';sc.value=ST.color||'#5865f2';sc.onchange=()=>save({color:sc.value},'Saved');
+    pane.append(f,sv,field('Invite code',row),field('Server tag',tg),tx('desc','Server description',300,1),field('Accent color',sc),
+     card(el('h3','ush','System messages channel'),sl('sysch','Send system messages to','',[['','No system messages'],...s.channels.filter(c=>c.kind!=='voice').map(c=>[String(c.id),'#'+c.name])],''),tg2('sysjoin','Send a welcome message when someone joins','',true),tg2('sysboost','Send a message when someone boosts','',true),tg2('systips','Send helpful tips for server setup','',true)),
+     card(el('h3','ush','Inactive'),sl('afk','Inactive timeout','Move idle voice users after this long.',[[60,'1 minute'],[300,'5 minutes'],[900,'15 minutes'],[1800,'30 minutes'],[3600,'1 hour']],300)),
+     card(el('h3','ush','Preferred locale'),sl('lang','Server language','',[['en','English'],['es','Español'],['fr','Français'],['de','Deutsch'],['pt','Português'],['ja','日本語']],'en')),
+     card(tg2('boost_bar','Show boost progress bar','',false)))}
+   if(tab==='md'){pane.append(card(el('h3','ush','Verification level'),sl('verif','Members must meet this before they can chat','',[['none','None — unrestricted'],['low','Low — verified account'],['medium','Medium — registered 5+ minutes'],['high','High — member for 10+ minutes']],'none')),
+     card(el('h3','ush','Explicit media content filter'),sl('filter','Scan media sent in this server','',[['off','Don\'t scan any media'],['nomembers','Scan media from members without roles'],['all','Scan media from all members']],'off')),
+     card(el('h3','ush','Channel safety'),sl('slow','Default slowmode','Seconds between messages per member.',[[0,'Off'],[5,'5 seconds'],[10,'10 seconds'],[30,'30 seconds'],[60,'1 minute'],[300,'5 minutes']],0),tg2('nsfw','Age-restricted server','Mark this server as 18+.',false),tg2('inv_pause','Pause invites','Stop new members joining with the invite code.',false)))}
+   if(tab==='cm'){pane.append(card(el('h3','ush','Community'),tg2('community','Enable Community','Unlock discovery-style features: rules, welcome, announcements.',false),sl('notif','Default notification settings','For new members.',[['all','All messages'],['mentions','Only @mentions']],'all')),tx('rules','Server rules',1000,1),el('small','mu','Server settings above are saved for the whole server. Enforcement of verification, filters and slowmode needs server-side hooks; the values are stored and ready for them.'))}
+  }
   if(tab==='ch'){pane.append(btn('+ Create Channel','',()=>channelDialog(s)));s.channels.forEach(c=>{const r=el('div','srow'),n=el('div','sn');n.append(ic(c.kind==='voice'?IC.spk:IC.hash,18),el('b','',c.name));const a=el('div','sa');
     a.append(btn('Rename','g sm',()=>{const D2=dialog();D2.set('Rename channel',c.name);const i=el('input');i.value=c.name;i.maxLength=20;const f=field('Channel name',i);D2.body.append(f);
       const ok=btn('Save','',async()=>{f.err();try{await api('channels/'+c.id,'PUT',{name:i.value.trim().replace(/\s+/g,'-')});await refresh();D2.close();draw1()}catch(e){f.err(e.message)}});i.onkeydown=e=>e.key==='Enter'&&ok.click();D2.foot.append(btn('Cancel','lnk',D2.close),ok);i.focus()}),
