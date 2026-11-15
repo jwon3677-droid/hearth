@@ -18,7 +18,7 @@ module.exports=({app,q,need,err,bad,THEMES,wss})=>{
   if(b.tag===''||b.tag==null){await q('update servers set tag=null,tag_icon=null,tag_color=null where id=$1',[id]);await q('update users set tag_server=null where tag_server=$1',[id]);ping();return res.json({})}
   const t=String(b.tag).trim().toUpperCase();
   if(!/^[A-Z0-9]{2,4}$/.test(t))return err(res,'Tag: 2-4 letters or numbers');if(bad(t))return err(res,'That tag isn\'t allowed.');
-  if(!ICONS.includes(b.icon))return err(res,'Bad icon');if(!HEX.test(b.color||''))return err(res,'Bad color');
+  if(b.icon==='mascot'?!(await q("select 1 from servers where id=$1 and invite='hearth'",[id]))[0]:!ICONS.includes(b.icon))return err(res,'Bad icon');if(!HEX.test(b.color||''))return err(res,'Bad color');
   await q('update servers set tag=$1,tag_icon=$2,tag_color=$3 where id=$4',[t,b.icon,b.color.toLowerCase(),id]);ping();res.json({})});
  // each person picks which of their servers' tags to wear
  app.put('/api/me/tag',need,async(req,res)=>{const sid=req.body&&req.body.server_id;
