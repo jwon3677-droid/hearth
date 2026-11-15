@@ -149,7 +149,8 @@ function pcard(u,o={}){const t=THEMES[u.theme]||THEMES.midnight,c=el('div','pcd'
 function profActions(u,box,o={}){const add=(t,cls,fn)=>{const b=btn(t,cls,fn);box.append(b);return b},done=()=>o.reload?o.reload():(popClose(),refresh());
  if(u.id===me.id){add('Edit Profile','',()=>{popClose();closeFull();editProfile()});if(o.pop)add('View Full Profile','g',()=>{popClose();fullProfile(u.id)});return}
  const f=u.friend;
- if(f&&f.status==='ok')add('Message','',()=>{popClose();closeFull();cur='home';open(dmKey(u.id),'@ '+u.username);members()});
+ add('Message','',()=>{popClose();closeFull();openDM(u)});
+ if(f&&f.status==='ok'){}
  else if(!f)add('Add Friend','',()=>api('friends','POST',{username:u.username}).then(()=>{toast('Friend request sent to '+u.username,1);done()}).catch(fail));
  else if(f.by!==me.id)add('Accept Request','',()=>api('friends/accept','POST',{id:u.id}).then(done).catch(fail));
  else add('Request Sent','g').disabled=true;
@@ -319,7 +320,7 @@ let hideV=false;try{hideV=localStorage.getItem('hvc')==='1'}catch{}
 const fmtT=ms=>{const s=Math.max(0,Math.floor(ms/1e3)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60,p=n=>String(n).padStart(2,'0');return h?`${h}:${p(m)}:${p(x)}`:`${p(m)}:${p(x)}`};
 function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)return;const sc=side.querySelector('.sbody'),top=sc?sc.scrollTop:0;rail.replaceChildren();side.replaceChildren();
  const rb=(c,tt,on,fn,cls)=>{const b=el('div','rb'+(on?' on':'')+(cls?' '+cls:''));typeof c==='string'?b.textContent=c:b.append(c);b.title=tt;b.onclick=fn;rail.append(b);return b},home=new Image();home.src=MURI;
- railBadge(rb(home,'Home & DMs',cur==='home',goHome),friends.filter(f=>f.status==='ok').map(f=>dmKey(f.id)));rail.append(el('div','sep'));
+ railBadge(rb(home,'Home & DMs',cur==='home',goHome),[...friends.filter(f=>f.status==='ok'),...dmList,...dmReqs].map(f=>dmKey(f.id)));rail.append(el('div','sep'));
  servers.forEach(s=>{const b=rb(s.has_icon||s.invite==='hearth'?(()=>{const m=new Image();m.src=s.has_icon?'/api/servers/'+s.id+'/icon?v='+AV:'/server-icon.svg';m.style.cssText='width:100%;height:100%;border-radius:inherit;object-fit:cover';return m})():initials(s.name),s.name+(s.is_mod?' (moderating)':''),cur===s.id,()=>goServer(s.id));if(s.is_mod){b.classList.add('modrb');b.append(el('i','modmk','🛡'))}railBadge(b,s.channels.map(c=>'c'+c.id))});
  rb(ic(IC.plus,22),'Add a Server',false,addServerDialog,'add');
  $('#app').classList.toggle('nomem',cur==='home'||!showMem);
@@ -329,8 +330,10 @@ function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)retur
   const pend=friends.filter(f=>f.status==='pending');
   if(pend.length){body.append(el('div','cat','Pending — '+pend.length));pend.forEach(f=>{const r=el('div','ch'),w=el('div','st');w.append(av(f.id,f.username,f.theme));r.append(w,el('span','',f.username+(f.by===me.id?' · sent':' · wants to add you')));
    if(f.by!==me.id)r.append(ib(IC.check,'Accept',()=>api('friends/accept','POST',{id:f.id}).then(refresh).catch(fail),18));r.append(ib(IC.x,f.by===me.id?'Cancel':'Decline',()=>api('friends/'+f.id,'DELETE').then(refresh).catch(fail),18));r.onclick=e=>profile(f.id,e);body.append(r)})}
+  if(dmReqs.length){body.append(el('div','cat','Message Requests — '+dmReqs.length));dmReqs.forEach(f=>{const k=dmKey(f.id),r=el('div','ch'+(ch===k?' on':'')+(unread[k]?' unr':'')),w=el('div','st');w.append(av(f.id,f.username,f.theme,f.adeco||null));r.append(w,el('span','',f.username));
+   r.append(ib(IC.check,'Accept',()=>api('dm/accept','POST',{id:f.id}).then(refresh).catch(fail),18),ib(IC.x,'Decline',()=>{api('dm/decline','POST',{id:f.id}).then(()=>{if(ch===k)open(null,'');return refresh()}).catch(fail)},18));r.onclick=()=>open(k,'@ '+f.username);body.append(r)})}
   const c=el('div','cat');c.append(el('span','','Direct Messages'),ib(IC.plus,'Add Friend',addFriendDialog,16));body.append(c);
-  const dms=friends.filter(f=>f.status==='ok');if(!dms.length)body.append(el('div','sempty','No conversations yet. Add a friend to start one.'));
+  const fo=friends.filter(f=>f.status==='ok'),dms=[...fo,...dmList.filter(d=>!fo.some(f=>f.id===d.id))];if(!dms.length)body.append(el('div','sempty','No conversations yet. Right-click someone to message them.'));
   dms.forEach(f=>{const k=dmKey(f.id),r=el('div','ch'+(ch===k?' on':'')+(unread[k]?' unr':'')),w=el('div','st'+stc(f.ps));w.append(av(f.id,f.username,f.theme,f.adeco||null));r.append(w,el('span','',f.username));pingBadge(r,k);r.onclick=()=>open(k,'@ '+f.username);body.append(r)})}
  else{const s=servers.find(x=>x.id===cur);if(s){hdr.append(el('span','',s.name),ic(IC.down,18));hdr.onclick=()=>serverMenu(s,hdr);const own=s.owner_id===me.id||isStaff();let hasV=false;
   [['text','Text Channels',IC.hash],['voice','Voice Channels',IC.spk]].forEach(([k,n,i])=>{const cs=s.channels.filter(c=>c.kind===k);if(k==='voice')hasV=cs.length>0;if(!cs.length||(k==='voice'&&hideV))return;
@@ -415,7 +418,7 @@ function userMenu(u,x,y){
  const id=u.id,name=u.username,mine=id===me.id,f=friends.find(z=>z.id===id),it=[];let note='';
  try{note=localStorage.getItem(noteKey(id))||''}catch{}
  it.push(['Profile',()=>profile(id)],['Mention',()=>{const i=$('#in');if(!i)return;i.value+=(i.value&&!/\s$/.test(i.value)?' ':'')+'@'+name+' ';i.focus();i.dispatchEvent(new Event('input'))}]);
- if(f&&f.status==='ok'&&!mine)it.push(['Message',()=>{closeFull();cur='home';open(dmKey(id),'@ '+name);members()}]);
+ if(!mine)it.push(['Message',()=>{closeFull();openDM(u)}]);
  it.push([note?'Edit Note':'Add Note',async()=>{const t=await askText('Note for '+name,'Only visible to you.',note,{label:'Note',max:256,ok:'Save'});if(t==null)return;const v=t.trim();try{v?localStorage.setItem(noteKey(id),v):localStorage.removeItem(noteKey(id))}catch{}toast(v?'Note saved':'Note removed',1)},{sub:note?(note.length>34?note.slice(0,34)+'…':note):'Only visible to you'}]);
  if(!mine){
   const w=el('div','cvol'),r=el('input');r.type='range';r.min=0;r.max=100;r.value=Math.round(userVol(id)*100);
@@ -431,3 +434,6 @@ function userMenu(u,x,y){
  it.push(['Copy User ID',()=>{copyTxt(String(id));toast('User ID copied',1)}]);
  ctxOpen(x,y,it)}
 (()=>{const s=document.createElement('style');s.textContent='#ctx{min-width:210px}.ci small{font-size:12px;font-weight:400;color:#949ba4;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ci:hover small{color:#ffffffcc}.cvol{padding:6px 8px 8px;color:#b5bac1;font-weight:600}.cvol input{outline:none;box-shadow:none;padding:0;border:0;background:none;height:20px;margin:4px 0 0;accent-color:#5865f2;cursor:pointer}.mtop .stg{flex:none}';document.head.append(s)})();
+
+// open a DM with anyone; strangers' first message goes to their Message Requests
+function openDM(u){const k=dmKey(u.id);if(u.id!==me.id&&!dmKnown(k))dmList.push({id:u.id,username:u.username,theme:u.theme||'midnight',adeco:u.adeco||null,ps:'offline'});cur='home';open(k,'@ '+u.username);members()}
