@@ -76,7 +76,7 @@ const MDRE=/(`[^`\n]+`)|(\|\|[\s\S]+?\|\|)|(\*\*\*[^\n]+?\*\*\*)|(\*\*[\s\S]+?\*
 function mentionEl(x,m){let n=x.slice(1);
  for(;;){const l=n.toLowerCase();
   if((l==='everyone'||l==='here')&&m&&m.ev)return[el('span','mention','@'+n),n.length+1];
-  const u=m&&(m.mn||[]).find(z=>z.username.toLowerCase()===l);
+  const u=m&&(m.mn||[]).find(z=>z.username.toLowerCase()===l||(z.at||[]).includes(l));   // still matches after the person renames
   if(u){const e=el('span','mention'+(u.id===me.id?' me':''),'@'+u.username);e.onclick=ev=>{ev.stopPropagation();profile(u.id,ev)};return[e,n.length+1]}
   if(n.endsWith('.'))n=n.slice(0,-1);else return[null,0]}}
 function inl(s,m,dp=0){const f=document.createDocumentFragment();let i=0;if(dp>3){f.append(rich(s));return f}
@@ -139,7 +139,8 @@ function composer(i,bar,send){const ac=el('div'),rb=el('div'),ty=el('div');ac.id
 const copyTxt=s=>{if(navigator.clipboard)return navigator.clipboard.writeText(s).catch(()=>{});const t=el('textarea');t.value=s;document.body.append(t);t.select();document.execCommand('copy');t.remove()};
 const canPin=m=>m.channel.startsWith('dm')||isStaff()||ownerOf(m.channel),canDel=m=>m.uid===me.id||isStaff()||ownerOf(m.channel);
 const hasPing=m=>m.uid!==me.id&&(m.ev||(m.mentions||[]).includes(me.id));
-const isPing=m=>m.uid!==me.id&&(m.channel.startsWith('dm')||hasPing(m));
+const dmKnown=k=>[...friends.filter(f=>f.status==='ok'),...dmList,...dmReqs].some(f=>dmKey(f.id)===k),isReq=k=>dmReqs.some(f=>dmKey(f.id)===k);
+const isPing=m=>m.uid!==me.id&&(m.channel.startsWith('dm')?!isReq(m.channel):hasPing(m));
 addEventListener('keydown',e=>document.body.classList.toggle('shift',e.shiftKey));addEventListener('keyup',e=>document.body.classList.toggle('shift',e.shiftKey));addEventListener('blur',()=>document.body.classList.remove('shift'));
 const ctxClose=()=>{const c=$('#ctx');c&&c.remove();document.removeEventListener('mousedown',ctxOut,true);document.removeEventListener('keydown',ctxKey,true);removeEventListener('resize',ctxClose);removeEventListener('blur',ctxClose)};
 const ctxOut=e=>{if(!e.target.closest('#ctx'))ctxClose()},ctxKey=e=>{if(e.key==='Escape')ctxClose()};
@@ -214,6 +215,7 @@ function typShow(){const t=$('#typ');if(!t)return;const now=Date.now();[...typer
 setInterval(typShow,1000);
 const tabPing=()=>{tabN++;document.title='('+tabN+') Hearth'};document.addEventListener('visibilitychange',()=>{if(!document.hidden){tabN=0;document.title='Hearth'}});
 function onMsg(m){typers.delete(m.uid);typShow();
+ if(m.channel.startsWith('dm')&&!dmKnown(m.channel)){if(m.uid!==me.id&&m.channel!==ch)unread[m.channel]=1;refresh().catch(()=>{});if(m.channel!==ch)return}   // new conversation (stranger = message request)
  if(m.channel===ch){add(m,true);if(document.hidden&&isPing(m))tabPing();return}
  if(m.uid===me.id)return;unread[m.channel]=1;if(isPing(m)){pings[m.channel]=(pings[m.channel]||0)+1;tabPing();notifyPing(m)}draw()}
 function onDel(id){const n=document.querySelector(`#msgs .m[data-id="${id}"]`);if(!n)return;const nx=n.nextElementSibling,head=!n.classList.contains('c');n.remove();
