@@ -86,5 +86,5 @@ create index if not exists m_chan on messages(channel,id);
 create table if not exists reactions(msg_id int references messages(id) on delete cascade,user_id int references users(id) on delete cascade,emoji text,ts timestamptz default now(),primary key(msg_id,user_id,emoji));
 alter table users add column if not exists dname text;alter table users add column if not exists pronouns text;alter table users add column if not exists peffect text default 'none';alter table users add column if not exists pc1 text;alter table users add column if not exists pc2 text;alter table users add column if not exists tag_server int;
 alter table users add column if not exists allow_fr boolean default true;create table if not exists mod_servers(user_id int references users(id) on delete cascade,server_id int,primary key(user_id,server_id));
-alter table servers add column if not exists tag text;alter table servers add column if not exists tag_icon text;alter table servers add column if not exists tag_color text;`);
+alter table servers add column if not exists tag text;alter table servers add column if not exists tag_icon text;alter table servers add column if not exists tag_color text;alter table servers add column if not exists settings jsonb default '{}';`);
  server.listen(process.env.PORT||3000,()=>console.log('Hearth running'))})();

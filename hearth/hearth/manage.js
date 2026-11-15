@@ -24,6 +24,10 @@ module.exports=({app,q,need,err,bad,bcrypt,X,wss})=>{
  // ---- server settings (owner or staff)
  app.put('/api/servers/:id',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);
   const n=nm(res,(req.body||{}).name);if(!n)return;await q('update servers set name=$1 where id=$2',[n,id]);ping();res.json({})});
+ const SS={desc:v=>String(v||'').slice(0,300),sysch:v=>/^\d{0,9}$/.test(String(v||''))?String(v||''):'',sysjoin:Boolean,sysboost:Boolean,systips:Boolean,notif:v=>['all','mentions'].includes(v)?v:'all',verif:v=>['none','low','medium','high'].includes(v)?v:'none',filter:v=>['off','nomembers','all'].includes(v)?v:'off',rules:v=>String(v||'').slice(0,1000),lang:v=>String(v||'en').slice(0,10),inv_pause:Boolean,slow:v=>[0,5,10,30,60,300].includes(+v)?+v:0,nsfw:Boolean,community:Boolean,boost_bar:Boolean,afk:v=>[0,60,300,900,1800,3600].includes(+v)?+v:300,color:v=>/^#[0-9a-f]{6}$/i.test(v)?v:''};
+ app.put('/api/servers/:id/settings',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);
+  const b=req.body||{},o={};Object.keys(SS).forEach(k=>{if(k in b)o[k]=SS[k](b[k])});
+  await q("update servers set settings=coalesce(settings,'{}'::jsonb)||$1::jsonb where id=$2",[JSON.stringify(o),id]);ping();res.json({})});
  app.delete('/api/servers/:id',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);
   if(await isLounge(id))return err(res,'The default Hearth Lounge can\'t be deleted');await wipe(id);ping();res.json({})});
  app.post('/api/servers/:id/invite',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);

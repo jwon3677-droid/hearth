@@ -16,7 +16,7 @@ module.exports=({app,q,need,err,bad,wss})=>{
   if(!r.size){delete rooms[k];delete vstart[k]}vbc(k)};
  // servers & channels
  app.get('/api/servers',need,async(req,res)=>{const ids="(select server_id from members where user_id=$1 union select server_id from mod_servers where user_id=$1 and exists(select 1 from users where id=$1 and role in (\'staff\',\'admin\')))";
-  const s=await q('select s.id,s.name,s.owner_id,s.invite,s.tag,s.tag_icon,s.tag_color,(not exists(select 1 from members mm where mm.server_id=s.id and mm.user_id=$1)) is_mod from servers s where s.id in '+ids+' order by s.id',[req.u.id]);
+  const s=await q('select s.id,s.name,s.owner_id,s.invite,s.tag,s.tag_icon,s.tag_color,coalesce(s.settings,\'{}\'::jsonb) settings,(not exists(select 1 from members mm where mm.server_id=s.id and mm.user_id=$1)) is_mod from servers s where s.id in '+ids+' order by s.id',[req.u.id]);
   const c=await q('select c.id,c.server_id,c.name,c.kind from channels c where c.server_id in '+ids+' order by c.id',[req.u.id]);
   res.json(s.map(x=>({...x,channels:c.filter(y=>y.server_id===x.id)})))});
  app.post('/api/servers',need,async(req,res)=>{const n=String(req.body.name||'').trim();
