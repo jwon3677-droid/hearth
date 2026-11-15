@@ -5,7 +5,7 @@ function applyPrefs(){const c=document.body.classList;c.toggle('pf-small',PREFS.
 applyPrefs();
 let _ac;function notifyPing(m){try{
  if(PREFS.sound&&PREFS.msgsound&&!(me&&me.status==='dnd')&&!(PREFS.streamer&&PREFS.sNoSound)){_ac=_ac||new(window.AudioContext||window.webkitAudioContext)();const o=_ac.createOscillator(),g=_ac.createGain();o.type='sine';o.frequency.setValueAtTime(880,_ac.currentTime);o.frequency.exponentialRampToValueAtTime(1320,_ac.currentTime+.09);g.gain.setValueAtTime(.08,_ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,_ac.currentTime+.25);o.connect(g).connect(_ac.destination);o.start();o.stop(_ac.currentTime+.26)}
- if(PREFS.desk&&!(PREFS.streamer&&PREFS.sNoNotif)&&document.hidden&&window.Notification&&Notification.permission==='granted'&&!(me&&me.status==='dnd'))new Notification(dn(m),{body:String(m.body).slice(0,120),icon:'/favicon.svg',tag:'hearth-'+m.channel})}catch{}}
+ if(PREFS.desk&&!(PREFS.streamer&&PREFS.sNoNotif)&&document.hidden&&window.Notification&&Notification.permission==='granted'&&!(me&&me.status==='dnd'))new Notification(dn(m),{body:(m.body===WAVE_TOKEN?'👋 Waved at you':String(m.body)).slice(0,120),icon:'/favicon.svg',tag:'hearth-'+m.channel})}catch{}}
 
 function userSettings(tab='acct'){const old=$('.ep');old&&old.remove();
  const ov=el('div','ep us'),L=el('div','epl usn'),R=el('div','usr'),pane=el('div','usp'),x=ib(IC.x,'Close (Esc)',()=>kill(),22);x.classList.add('epx');

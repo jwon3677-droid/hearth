@@ -127,3 +127,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 #bar>.ib:first-child{border-radius:8px 0 0 8px}#bar>.ib:first-child+input+#in{border-radius:0}
 .bd.bi.ico{padding:3px;margin-left:4px;cursor:default}.bd.bi.ico svg{width:16px;height:16px}#bar>.ib:first-child{color:#b5bac1;display:grid;place-items:center}#bar>.ib:first-child:hover{color:#dbdee1}#bar>.ib:first-child svg{width:24px;height:24px}
 .sd.sdi{width:18px;height:18px;border-radius:0;background:none!important;display:inline-grid;place-items:center}.sd.sdi svg{display:block}
+
+/* ---- DM intro + wave ---- */
+.dmintro{padding:16px 0 12px;margin-bottom:8px}.dmintro .av{width:80px;height:80px;font-size:32px;cursor:default;margin-bottom:10px}
+.dmintro h1{margin:0 0 4px;font-size:32px;line-height:1.15;color:#f2f3f5;word-break:break-word}.dmintro p{margin:0;color:#b5bac1;font-size:15px}.dmintro p b{color:#f2f3f5}
+.dmwave{margin-top:22px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}.dmwave img{filter:drop-shadow(0 4px 8px #0006)}.dmwave .btn{height:40px;padding:0 20px;font-size:15px}
+.wavest{display:block;margin:4px 0;max-width:140px;height:auto;user-select:none}

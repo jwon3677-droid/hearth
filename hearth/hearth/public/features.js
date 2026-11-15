@@ -181,7 +181,7 @@ function editMsg(d){const m=d._m;if(!m||m.uid!==me.id||d.classList.contains('edi
 function render(m,grp,isNew){
  const t=THEMES[m.theme]||THEMES.midnight,d=el('div','m'+(grp?' c':'')+(isNew?' new':'')+(hasPing(m)?' ping':'')),b=el('div','mb'),body=el('div','mt'),
   time=new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:PREFS.t24?false:undefined});
- d.dataset.id=m.id;d.dataset.uid=m.uid;d._m=m;if(m.body)body.append(md(m.body,m));{const an=attachNode(m);an&&body.append(an)}if(isBig(m.body))body.classList.add('big');
+ d.dataset.id=m.id;d.dataset.uid=m.uid;d._m=m;if(m.body===WAVE_TOKEN)body.append(waveImg(120));else if(m.body)body.append(md(m.body,m));{const an=attachNode(m);an&&body.append(an)}if(isBig(m.body))body.classList.add('big');
  if(m.edited){const e=el('span','ed','(edited)');e.title='Edited '+new Date(m.edited).toLocaleString();body.append(e)}
  if(m.rp){d.classList.add('hasrp');d.append(replyRef(m.rp))}
  if(grp){d.append(el('span','ht',time.replace(/ ?[AP]M/,'')));b.append(body)}
@@ -192,7 +192,7 @@ function render(m,grp,isNew){
  b.append(rxBar(m));d.append(b,toolbar(m,d));
  d.oncontextmenu=e=>{if(e.target.closest('input,textarea,.eb'))return;e.preventDefault();if(m.uid&&e.target.closest('.mh2 .nm,.mh2 .av,.av')&&!e.target.closest('.att,.rx'))return userMenu({id:m.uid,username:m.username},e.clientX,e.clientY);msgMenu(m,d,e.clientX,e.clientY,e.target)};return d}
 function replyRef(p){const r=el('div','rp');if(p.gone){r.append(el('i','','Original message was deleted'));return r}
- const n=el('span','nm',dn(p)),t=el('span','rt');nameFx(n,p,(THEMES[p.theme]||THEMES.midnight)[0]);t.append(rich(p.body.replace(/\s+/g,' ')));
+ const n=el('span','nm',dn(p)),t=el('span','rt');nameFx(n,p,(THEMES[p.theme]||THEMES.midnight)[0]);t.append(rich((p.body===WAVE_TOKEN?'👋 Wave':p.body).replace(/\s+/g,' ')));
  r.append(av(p.uid,p.username,p.theme),n,t);r.onclick=()=>jumpTo(p.id);return r}
 function jumpTo(id){const n=document.querySelector(`#msgs .m[data-id="${id}"]`);if(!n)return;n.scrollIntoView({block:'center',behavior:'smooth'});n.classList.remove('hl');void n.offsetWidth;n.classList.add('hl');setTimeout(()=>n.classList.remove('hl'),2200)}
 function rxBar(m){const r=el('div','rx');

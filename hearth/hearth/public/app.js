@@ -48,14 +48,14 @@ function pickerFill(emo,pk){const tabs=el('div','et'),grid=el('div','eg');emo.ap
 const hue=s=>Math.abs([...s].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7))%360;
 let last=null;
 // render() lives in features.js
-function add(m,isNew){const box=$('#msgs'),near=box.scrollHeight-box.scrollTop-box.clientHeight<150,d=new Date(m.ts),day=d.toDateString();
+function add(m,isNew){const box=$('#msgs'),dw=box.querySelector('.dmwave');dw&&dw.remove();const near=box.scrollHeight-box.scrollTop-box.clientHeight<150,d=new Date(m.ts),day=d.toDateString();
  if(!last||last.day!==day){box.append(el('div','dd',day===new Date().toDateString()?'Today':d.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric',year:'numeric'})));last=null}
  const grp=last&&last.uid===m.uid&&d-last.t<3e5&&!m.rp;last={uid:m.uid,t:+d,day};box.append(render(m,grp,isNew));if(near||(isNew&&m.uid===me.id))box.scrollTop=box.scrollHeight}
 let showMem=true;
 async function load(){const b=$('#msgs'),tp=$('#top');b.replaceChildren();last=null;tp.replaceChildren();$('#bar').style.display=ch?'flex':'none';
  if(!ch){const e=el('div','empty'),i=new Image();i.src=MURI;i.width=150;e.append(i,el('h2','','Nothing here yet'),el('p','mu',cur==='home'?'Add a friend or pick a DM on the left.':'Pick a channel to start chatting.'));b.append(e);return}
  tp.append(ic(chName[0]==='@'?IC.at:IC.hash,22),el('b','',chName.replace(/^[#@] /,'')),el('span','grow'),ib(IC.pin,'Pinned Messages',showPins,22),ib(IC.users,'Toggle member list',()=>{showMem=!showMem;draw()},22));
- $('#in').placeholder='Message '+chName;(await api('messages?channel='+ch)).forEach(m=>add(m));b.scrollTop=1e9}
+ $('#in').placeholder='Message '+chName;const k=ch,ms=await api('messages?channel='+k);if(k!==ch)return;if(k.startsWith('dm')&&ms.length<50)dmIntro(b,ms.length);ms.forEach(m=>add(m));b.scrollTop=1e9}
 const open=(k,n)=>{ch=k;chName=n;if(k){delete unread[k];delete pings[k]}typers.clear();setReply(null);typShow();load().catch(fail);draw()};
 async function refresh(){const[sv,fr,dm]=await Promise.all([api('servers'),api('friends'),api('dms').catch(()=>({}))]);servers=sv;friends=fr;dmList=dm.list||[];dmReqs=dm.reqs||[];draw();members()}
 let memTok=0;
