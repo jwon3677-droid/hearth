@@ -113,7 +113,7 @@ function serverSettings(sid,tab='ov'){const D=dialog('640px');D.box.classList.ad
   if(tab==='mb'){pane.append(el('small','mu','Loading…'));api('members/'+s.id).then(l=>{if(tab!=='mb')return;pane.replaceChildren();l.forEach(m=>{const r=el('div','srow'),n=el('div','sn');n.append(el('b','',dn(m)),el('small','mu',m.username+(m.id===s.owner_id?' · owner':['staff','admin'].includes(m.role)?' · staff':'')));const a=el('div','sa');
      if(m.id!==s.owner_id&&!['staff','admin'].includes(m.role)&&m.id!==me.id)a.append(btn('Remove','dng sm',()=>{if(confirm('Remove '+m.username+' from the server? They can rejoin with an invite.'))run(()=>api('servers/'+s.id+'/members/'+m.id,'DELETE'),m.username+' removed')}));r.append(n,a);pane.append(r)})}).catch(fail)}
   if(tab==='dz'){pane.append(el('p','mu','Deleting a server permanently removes all of its channels and messages. This can\'t be undone.'));
-   if(s.invite==='lounge')pane.append(el('p','mu','The default Hearth Lounge can\'t be deleted.'));
+   if(s.invite==='hearth')pane.append(el('p','mu','The default Hearth Lounge can\'t be deleted.'));
    else pane.append(btn('Delete Server','dng',()=>{const t=prompt('Type the server name to confirm deletion:\n'+s.name);if(t===s.name)run(async()=>{await api('servers/'+s.id,'DELETE');if(cur===s.id)goHome()},'Server deleted');else if(t!=null)toast('Name didn\'t match — nothing was deleted')}))}}
  draw1()}
 
