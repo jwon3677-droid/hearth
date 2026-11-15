@@ -308,9 +308,9 @@ async function members(){const p=$('#mem');if(!p)return;const sid=cur,tok=++memT
  const l=await api('members/'+sid).catch(()=>null);if(!l||tok!==memTok)return;memCache=l;const seen=new Set(),f=document.createDocumentFragment();
  [['Staff',u=>['admin','staff'].includes(u.role)],['Online',u=>u.online],['Offline',()=>true]].forEach(([n,fn])=>{const us=l.filter(u=>!seen.has(u.id)&&fn(u));us.forEach(u=>seen.add(u.id));if(!us.length)return;f.append(el('div','mh',n+' — '+us.length));
   us.forEach(u=>{const r=el('div','mr'+(u.online?'':' off')),w=el('div','st'+stc(u.ps)),t=THEMES[u.theme]||THEMES.midnight,nm=el('span','nm',u.username),tx=el('div','mtx');
-   (u.online||u.ncolor||(u.neffect&&u.neffect!=='solid'))&&nameFx(nm,u,t[0]);w.append(av(u.id,u.username,u.theme,u.adeco||null));const top=el('div','mtop');top.append(nm);(u.badges||[]).slice(0,1).forEach(k=>BADGES[k]&&top.append(badge(k)));tx.append(top);
+   (u.online||u.ncolor||(u.neffect&&u.neffect!=='solid'))&&nameFx(nm,u,t[0]);w.append(av(u.id,u.username,u.theme,u.adeco||null));const top=el('div','mtop');top.append(nm);{const tc=tagChip(u.tg);tc&&top.append(tc)}(u.badges||[]).slice(0,1).forEach(k=>BADGES[k]&&top.append(badge(k)));tx.append(top);
    if(u.cstatus&&u.online){const s=el('div','mst');s.append(rich(u.cstatus));tx.append(s)}
-   r.append(w,tx);r.onclick=e=>profile(u.id,e);f.append(r)})});
+   r.append(w,tx);r.onclick=e=>profile(u.id,e);r.oncontextmenu=e=>{e.preventDefault();userMenu(u,e.clientX,e.clientY)};f.append(r)})});
  p.replaceChildren(f)}
 const pollFriends=()=>api('friends').then(f=>{friends=f;if(cur==='home')draw()}).catch(()=>{});
 
@@ -360,7 +360,7 @@ function watch(id,s){try{actx=actx||new(window.AudioContext||window.webkitAudioC
 setInterval(()=>{if(!Object.keys(mon).length&&!speaking.size)return;const now=new Set();
  for(const id in mon){const m=mon[id];m.an.getByteTimeDomainData(m.buf);let x=0;for(const v of m.buf){const t=(v-128)/128;x+=t*t}if(Math.sqrt(x/m.buf.length)>.035&&!(+id===me.id&&(selfMute||selfDeaf)))now.add(+id)}
  if(now.size===speaking.size&&[...now].every(i=>speaking.has(i)))return;speaking=now;document.querySelectorAll('.vp').forEach(n=>n.classList.toggle('speak',now.has(+n.dataset.uid)))},120);
-function peer(id){if(pcs[id])return pcs[id].pc;const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]}),a=new Audio();a.autoplay=true;a.muted=selfDeaf;document.body.append(a);pcs[id]={pc,a};
+function peer(id){if(pcs[id])return pcs[id].pc;const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]}),a=new Audio();a.autoplay=true;a.volume=userVol(id);a.muted=selfDeaf;document.body.append(a);pcs[id]={pc,a};
  stream.getTracks().forEach(t=>pc.addTrack(t,stream));pc.ontrack=e=>{a.srcObject=e.streams[0];watch(id,e.streams[0])};pc.onicecandidate=e=>e.candidate&&sig(id,{ice:e.candidate});return pc}
 function vclose(id){delete mon[id];if(!pcs[id])return;pcs[id].pc.close();pcs[id].a.remove();delete pcs[id];delete names[id]}
 function vcleanup(){Object.keys(pcs).forEach(vclose);delete mon[me&&me.id];stream&&stream.getTracks().forEach(t=>t.stop());stream=null;room=null;names={};speaking=new Set()}
@@ -407,3 +407,27 @@ function chanDrag(body,s){let t=null,d=null,sx=0,sy=0;
  body.addEventListener('contextmenu',e=>{if(d||(e.pointerType==='touch'&&e.target.closest('.ch[data-cid]')))e.preventDefault()});
 }
 (()=>{const s=document.createElement('style');s.textContent='.ch[data-cid]{-webkit-touch-callout:none;user-select:none}.ch.dragging{background:#404249!important;box-shadow:0 4px 14px #0009;opacity:.9;cursor:grabbing}.dragmode{cursor:grabbing}.dragmode .ch{pointer-events:auto}';document.head.append(s)})();
+
+// ---------- right-click user menu (member list + chat names/avatars) ----------
+const noteKey=id=>'hearth.note.'+id,volKey=id=>'hearth.vol.'+id;
+function userVol(id){try{const v=localStorage.getItem(volKey(id));return v==null||isNaN(+v)?1:Math.max(0,Math.min(1,+v/100))}catch{return 1}}
+function userMenu(u,x,y){
+ const id=u.id,name=u.username,mine=id===me.id,f=friends.find(z=>z.id===id),it=[];let note='';
+ try{note=localStorage.getItem(noteKey(id))||''}catch{}
+ it.push(['Profile',()=>profile(id)],['Mention',()=>{const i=$('#in');if(!i)return;i.value+=(i.value&&!/\s$/.test(i.value)?' ':'')+'@'+name+' ';i.focus();i.dispatchEvent(new Event('input'))}]);
+ if(f&&f.status==='ok'&&!mine)it.push(['Message',()=>{closeFull();cur='home';open(dmKey(id),'@ '+name);members()}]);
+ it.push([note?'Edit Note':'Add Note',async()=>{const t=await askText('Note for '+name,'Only visible to you.',note,{label:'Note',max:256,ok:'Save'});if(t==null)return;const v=t.trim();try{v?localStorage.setItem(noteKey(id),v):localStorage.removeItem(noteKey(id))}catch{}toast(v?'Note saved':'Note removed',1)},{sub:note?(note.length>34?note.slice(0,34)+'…':note):'Only visible to you'}]);
+ if(!mine){
+  const w=el('div','cvol'),r=el('input');r.type='range';r.min=0;r.max=100;r.value=Math.round(userVol(id)*100);
+  r.oninput=()=>{try{localStorage.setItem(volKey(id),r.value)}catch{}pcs[id]&&pcs[id].a&&(pcs[id].a.volume=r.value/100)};
+  w.append(el('div','','User Volume'),r);it.push('sep',{node:w},'sep');
+  const aft=p=>p.then(()=>refresh()).catch(fail);
+  if(!f)it.push(['Add Friend',()=>aft(api('friends','POST',{username:name}).then(()=>toast('Friend request sent to '+name,1)))]);
+  else if(f.status==='ok')it.push(['Remove Friend',()=>aft(api('friends/'+id,'DELETE'))]);
+  else if(f.by!==me.id)it.push(['Accept Friend Request',()=>aft(api('friends/accept','POST',{id}))]);
+  else it.push(['Cancel Friend Request',()=>aft(api('friends/'+id,'DELETE'))]);
+  it.push('sep');
+ }else it.push('sep');
+ it.push(['Copy User ID',()=>{copyTxt(String(id));toast('User ID copied',1)}]);
+ ctxOpen(x,y,it)}
+(()=>{const s=document.createElement('style');s.textContent='#ctx{min-width:210px}.ci small{font-size:12px;font-weight:400;color:#949ba4;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ci:hover small{color:#ffffffcc}.cvol{padding:6px 8px 8px;color:#b5bac1;font-weight:600}.cvol input{outline:none;box-shadow:none;padding:0;border:0;background:none;height:20px;margin:4px 0 0;accent-color:#5865f2;cursor:pointer}.mtop .stg{flex:none}';document.head.append(s)})();
