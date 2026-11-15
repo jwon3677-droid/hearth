@@ -134,8 +134,8 @@ function popout(rect,mode,node){popClose();const p=el('div','po');p.append(node)
 // ---------- profile card (popout, full profile and the edit-profile preview all share this) ----------
 const sdot=s=>el('i','sd '+(s||'offline'));
 function pcard(u,o={}){const t=THEMES[u.theme]||THEMES.midnight,c=el('div','pcd'+(o.big?' big':'')),bh=o.big?(u.hb?140:96):(u.hb?105:60),bn=el('div','pbn'),pav=el('div','pav'),w=el('div','st'+stc(u.ps));
- const g1=u.pc1||t[0],g2=u.pc2||t[1];c.style.setProperty('--bh',bh+'px');c.style.setProperty('--pa',g1);c.classList.add('pct');c.style.overflow='hidden';bn.style.height=bh+'px';bn.style.background=u.hb?`url(/api/banner/${u.id}?v=${AV}) center/cover`:`linear-gradient(135deg,${g1},${g2})`;
- w.append(av(u.id,u.username,u.theme));pav.append(w);c.append(bn,pav);
+ const g1=u.pc1||t[0],g2=u.pc2||t[1];c.style.setProperty('--bh',bh+'px');c.style.setProperty('--pa',g1);c.classList.add('pct');c.style.overflow='hidden';bn.style.height=bh+'px';c.style.setProperty('--pb',g2);bn.style.background=u.hb?`url(/api/banner/${u.id}?v=${AV}) center/cover`:'transparent';
+ w.append(av(u.id,u.username,u.theme,u.adeco||'none'));pav.append(w);c.append(bn,pav);
  if(u.cstatus){const b=el('div','sbub');b.append(rich(u.cstatus));c.append(b)}
  const body=el('div','pbody'),nm=el('div','pnm'),nn=el('span','',dn(u));nameFx(nn,u,'#f2f3f5');nm.append(nn);const tg=tagChip(u.tg);tg&&nm.append(tg);body.append(nm);
  const sub=[u.dname&&u.dname!==u.username?u.username:'',u.pronouns||''].filter(Boolean);if(sub.length){const s=el('div','pun');s.textContent=sub.join(' • ');body.append(s)}
@@ -197,12 +197,12 @@ async function logout(){await api('logout','POST').catch(()=>{});const x=ws;me=n
 // ---------- edit profile (full screen, live preview) ----------
 function settings(t){return userSettings(t)}
 async function editProfile(){let u;try{u=await api('user/'+me.id)}catch(e){return fail(e)}popClose();const old=$('.ep');old&&old.remove();
- const d={bio:u.bio||'',theme:me.theme,dname:u.dname||'',pronouns:u.pronouns||'',peffect:u.peffect||'none',pc1:u.pc1||null,pc2:u.pc2||null,tag:u.tg?u.tg.id:null},orig={...d},dirty=()=>Object.keys(d).some(k=>d[k]!==orig[k]);
+ const d={bio:u.bio||'',theme:me.theme,dname:u.dname||'',pronouns:u.pronouns||'',peffect:u.peffect||'none',pc1:u.pc1||null,pc2:u.pc2||null,adeco:u.adeco||'none',tag:u.tg?u.tg.id:null},orig={...d},dirty=()=>Object.keys(d).some(k=>d[k]!==orig[k]);
  const ov=el('div','ep'),L=el('div','epl'),R=el('div','epr'),prev=el('div','epp'),bar=el('div','ubar'),x=ib(IC.x,'Close (Esc)',()=>tryClose(),22);x.classList.add('epx');
  const tile=(t,...kids)=>{const w=el('section','tile'),c=el('div','tilec');c.append(...kids);w.append(el('h3','',t),c);return w};
  const fld=(lab,inp)=>{const w=el('div','fld'),l=el('label','',lab);w.append(l,inp);return w};
  // avatar
- const ap=el('div','tav'),apaint=()=>{ap.replaceChildren(av(me.id,me.username,d.theme))};
+ const ap=el('div','tav'),apaint=()=>{ap.replaceChildren(av(me.id,me.username,d.theme,d.adeco))};
  const rowA=el('div','trow');rowA.append(ap,btn('Change Avatar','',()=>pickImg('avatar')),btn('Remove','g',async()=>{try{await api('avatar','DELETE');AV=Date.now();draw();load();members();apaint();paint()}catch(e){fail(e)}}));
  // display name + pronouns
  const dni=el('input'),pri=el('input'),dc=el('div','cnt2');dni.maxLength=32;dni.placeholder=me.username;dni.value=d.dname;pri.maxLength=30;pri.placeholder='e.g. she/her, they/them';pri.value=d.pronouns;
@@ -222,25 +222,27 @@ async function editProfile(){let u;try{u=await api('user/'+me.id)}catch(e){retur
   row(null,'No server tag',null);servers.filter(s=>s.tag).forEach(s=>row(s.id,s.name,{tag:s.tag,tag_icon:s.tag_icon,tag_color:s.tag_color}));
   servers.filter(s=>s.owner_id===me.id).forEach(s=>tg.append(btn((s.tag?'Edit tag for ':'Create a tag for ')+s.name,'g sm',()=>tagDialog(s,()=>{tpick();paint()}))));
   if(!servers.some(s=>s.tag))tg.append(el('div','cnt2','None of your servers have a tag yet. Server owners can create one.'))};
+ // avatar decorations
+ const dg=el('div','dgrid'),dpaint=()=>{dg.replaceChildren();DECO_LIST.forEach(([k,l])=>{const b=el('button','dtile'+(d.adeco===k?' on':''));b.type='button';b.title=l;const a=av(me.id,me.username,d.theme,k);b.append(a,el('span','',l));b.onclick=()=>{d.adeco=k;dpaint();apaint();paint()};dg.append(b)})};
  // bio
  const ta=el('textarea'),cnt=el('div','cnt2');ta.value=d.bio;ta.maxLength=190;ta.placeholder='Tell people a little about yourself';ta.rows=4;
  ta.oninput=()=>{d.bio=ta.value;cnt.textContent=(190-d.bio.length)+' characters left';paint()};cnt.textContent=(190-d.bio.length)+' characters left';
- L.append(el('div','eph','Main Profile'),tile('Avatar',rowA),tile('Display Name & Pronouns',fld('Display name',dni),fld('Pronouns (max 30)',pri),dc),tile('Display Name Style',ns),tile('Profile Theme & Banner',th,cr,rowB),tile('Profile Effect',eg),tile('Server Tag',tg),tile('About Me',ta,cnt));
+ L.append(el('div','eph','Main Profile'),tile('Avatar',rowA),tile('Avatar Decoration',dg),tile('Display Name & Pronouns',fld('Display name',dni),fld('Pronouns (max 30)',pri),dc),tile('Display Name Style',ns),tile('Profile Theme & Banner',th,cr,rowB),tile('Profile Effect',eg),tile('Server Tag',tg),tile('About Me',ta,cnt));
  const lo=btn('Log Out','g wide',logout);L.append(lo);
- const rs=btn('Reset','lnk',()=>{Object.assign(d,orig);ta.value=d.bio;dni.value=d.dname;pri.value=d.pronouns;c1.value=d.pc1||(THEMES[d.theme]||THEMES.midnight)[0];c2.value=d.pc2||(THEMES[d.theme]||THEMES.midnight)[1];ta.oninput();dcnt();tpaint();epaint();tpick();apaint();paint()}),
+ const rs=btn('Reset','lnk',()=>{Object.assign(d,orig);ta.value=d.bio;dni.value=d.dname;pri.value=d.pronouns;c1.value=d.pc1||(THEMES[d.theme]||THEMES.midnight)[0];c2.value=d.pc2||(THEMES[d.theme]||THEMES.midnight)[1];ta.oninput();dcnt();tpaint();epaint();tpick();dpaint();apaint();paint()}),
  sv=btn('Save Changes','ok',async()=>{sv.disabled=true;
   try{if(d.bio!==orig.bio)await api('bio','PUT',{bio:d.bio});
-   await api('profile2','PUT',{dname:d.dname,pronouns:d.pronouns,theme:d.theme,peffect:d.peffect,pc1:d.pc1,pc2:d.pc2});
+   await api('profile2','PUT',{dname:d.dname,pronouns:d.pronouns,theme:d.theme,peffect:d.peffect,pc1:d.pc1,pc2:d.pc2,adeco:d.adeco});
    if(d.tag!==orig.tag)await api('me/tag','PUT',{server_id:d.tag});
-   Object.assign(me,{dname:d.dname.trim()||null,pronouns:d.pronouns.trim()||null,theme:d.theme,peffect:d.peffect,pc1:d.pc1,pc2:d.pc2,tag_server:d.tag});theme();
+   Object.assign(me,{dname:d.dname.trim()||null,pronouns:d.pronouns.trim()||null,theme:d.theme,peffect:d.peffect,pc1:d.pc1,pc2:d.pc2,adeco:d.adeco==='none'?null:d.adeco,tag_server:d.tag});theme();
    Object.assign(orig,d);draw();members();load().catch(()=>{});paint();toast('Profile saved',1)}catch(e){fail(e)}sv.disabled=false});
  bar.append(el('span','','Careful — you have unsaved changes!'),el('span','grow'),rs,sv);
- const paint=()=>{const s=servers.find(z=>z.id===d.tag&&z.tag);nspaint();prev.replaceChildren(el('div','eplabel','Preview'),pcard({id:me.id,username:me.username,dname:d.dname.trim(),pronouns:d.pronouns.trim(),peffect:d.peffect,pc1:d.pc1,pc2:d.pc2,tg:s?{tag:s.tag,tag_icon:s.tag_icon,tag_color:s.tag_color}:null,bio:d.bio,theme:d.theme,badges:me.badges,created:u.created,hb:u.hb,nfont:me.nfont,neffect:me.neffect,ncolor:me.ncolor,ncolor2:me.ncolor2,ps:myPs(),cstatus:me.cstatus},{big:true}));
+ const paint=()=>{const s=servers.find(z=>z.id===d.tag&&z.tag);nspaint();prev.replaceChildren(el('div','eplabel','Preview'),pcard({id:me.id,username:me.username,dname:d.dname.trim(),pronouns:d.pronouns.trim(),peffect:d.peffect,pc1:d.pc1,pc2:d.pc2,adeco:d.adeco,tg:s?{tag:s.tag,tag_icon:s.tag_icon,tag_color:s.tag_color}:null,bio:d.bio,theme:d.theme,badges:me.badges,created:u.created,hb:u.hb,nfont:me.nfont,neffect:me.neffect,ncolor:me.ncolor,ncolor2:me.ncolor2,ps:myPs(),cstatus:me.cstatus},{big:true}));
   R.style.setProperty('--g',d.pc1||(THEMES[d.theme]||THEMES.midnight)[0]);bar.classList.toggle('show',dirty())};
  const key=e=>{if(e.key==='Escape'&&!$('.nsw')&&!$('.ov')&&!popEl)tryClose()},kill=()=>{ov.remove();removeEventListener('keydown',key);window.onImg=window.onNameStyle=null};
  const tryClose=()=>{if(dirty()){bar.classList.remove('shake');void bar.offsetWidth;bar.classList.add('shake');return}kill()};
  window.onImg=k=>{if(k==='banner')u.hb=true;apaint();paint()};window.onNameStyle=()=>{nspaint();paint()};
- R.append(prev,bar);ov.append(L,R,x);document.body.append(ov);addEventListener('key'+'down',key);apaint();nspaint();tpaint();epaint();tpick();paint()}
+ R.append(prev,bar);ov.append(L,R,x);document.body.append(ov);addEventListener('key'+'down',key);apaint();nspaint();tpaint();epaint();tpick();dpaint();paint()}
 
 // ---------- server tag editor (owner) ----------
 function tagDialog(s,done){const D=dialog();D.set('Server tag','Members can wear this tag next to their name. 2-4 letters or numbers.');
@@ -272,7 +274,7 @@ async function members(){const p=$('#mem');if(!p)return;const sid=cur,tok=++memT
  const l=await api('members/'+sid).catch(()=>null);if(!l||tok!==memTok)return;memCache=l;const seen=new Set(),f=document.createDocumentFragment();
  [['Staff',u=>['admin','staff'].includes(u.role)],['Online',u=>u.online],['Offline',()=>true]].forEach(([n,fn])=>{const us=l.filter(u=>!seen.has(u.id)&&fn(u));us.forEach(u=>seen.add(u.id));if(!us.length)return;f.append(el('div','mh',n+' — '+us.length));
   us.forEach(u=>{const r=el('div','mr'+(u.online?'':' off')),w=el('div','st'+stc(u.ps)),t=THEMES[u.theme]||THEMES.midnight,nm=el('span','nm',u.username),tx=el('div','mtx');
-   (u.online||u.ncolor||(u.neffect&&u.neffect!=='solid'))&&nameFx(nm,u,t[0]);w.append(av(u.id,u.username,u.theme));const top=el('div','mtop');top.append(nm);(u.badges||[]).slice(0,1).forEach(k=>BADGES[k]&&top.append(badge(k)));tx.append(top);
+   (u.online||u.ncolor||(u.neffect&&u.neffect!=='solid'))&&nameFx(nm,u,t[0]);w.append(av(u.id,u.username,u.theme,u.adeco||null));const top=el('div','mtop');top.append(nm);(u.badges||[]).slice(0,1).forEach(k=>BADGES[k]&&top.append(badge(k)));tx.append(top);
    if(u.cstatus&&u.online){const s=el('div','mst');s.append(rich(u.cstatus));tx.append(s)}
    r.append(w,tx);r.onclick=e=>profile(u.id,e);f.append(r)})});
  p.replaceChildren(f)}
@@ -295,7 +297,7 @@ function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)retur
    if(f.by!==me.id)r.append(ib(IC.check,'Accept',()=>api('friends/accept','POST',{id:f.id}).then(refresh).catch(fail),18));r.append(ib(IC.x,f.by===me.id?'Cancel':'Decline',()=>api('friends/'+f.id,'DELETE').then(refresh).catch(fail),18));r.onclick=e=>profile(f.id,e);body.append(r)})}
   const c=el('div','cat');c.append(el('span','','Direct Messages'),ib(IC.plus,'Add Friend',addFriendDialog,16));body.append(c);
   const dms=friends.filter(f=>f.status==='ok');if(!dms.length)body.append(el('div','sempty','No conversations yet. Add a friend to start one.'));
-  dms.forEach(f=>{const k=dmKey(f.id),r=el('div','ch'+(ch===k?' on':'')+(unread[k]?' unr':'')),w=el('div','st'+stc(f.ps));w.append(av(f.id,f.username,f.theme));r.append(w,el('span','',f.username));pingBadge(r,k);r.onclick=()=>open(k,'@ '+f.username);body.append(r)})}
+  dms.forEach(f=>{const k=dmKey(f.id),r=el('div','ch'+(ch===k?' on':'')+(unread[k]?' unr':'')),w=el('div','st'+stc(f.ps));w.append(av(f.id,f.username,f.theme,f.adeco||null));r.append(w,el('span','',f.username));pingBadge(r,k);r.onclick=()=>open(k,'@ '+f.username);body.append(r)})}
  else{const s=servers.find(x=>x.id===cur);if(s){hdr.append(el('span','',s.name),ic(IC.down,18));hdr.onclick=()=>serverMenu(s,hdr);const own=s.owner_id===me.id||isStaff();let hasV=false;
   [['text','Text Channels',IC.hash],['voice','Voice Channels',IC.spk]].forEach(([k,n,i])=>{const cs=s.channels.filter(c=>c.kind===k);if(k==='voice')hasV=cs.length>0;if(!cs.length||(k==='voice'&&hideV))return;
    const c=el('div','cat');c.append(el('span','',n));own&&c.append(ib(IC.plus,'Create Channel',()=>channelDialog(s,k),16));body.append(c);

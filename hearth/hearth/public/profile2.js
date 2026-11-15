@@ -19,7 +19,7 @@ window.BD=BD;
 window.badge=function(k){const b=BD[k]||{n:k},s=el('span','bd bi'+(b.g?' bg':''));if(b.g)s.style.setProperty('--bgd',b.g);else if(b.c)s.style.background=b.c;
  s.title=b.n;if(b.i){const i=el('span','bic');i.innerHTML=b.i;s.append(i)}s.append(el('span','',b.n));return s};
 // ---- display name / pronouns ----
-window.dn=u=>(u&&(u.dname||u.username))||'';
+window.dn=u=>{if(u&&window.DECO){const id=u.uid||u.id;if(id&&'adeco' in u)DECO[id]=u.adeco||null}return(u&&(u.dname||u.username))||''};
 // ---- profile themes (extra presets) ----
 Object.assign(THEMES,{rose:['#ff5c8a','#4a1530'],gold:['#f5b942','#3d2a0b'],mint:['#7ee8c0','#0d3a33'],lavender:['#b18cff','#2a1d52'],mono:['#9aa0ab','#17181b']});
 window.PEFFECTS=[['none','None'],['bubbles','Bubbles'],['sparkles','Sparkles'],['snow','Snowfall'],['embers','Embers'],['hearts','Hearts'],['stars','Starfield'],['aurora','Aurora'],['rain','Rain']];
@@ -51,7 +51,7 @@ const st=document.createElement('style');st.textContent=`
 .fx-snow i{font-size:calc(18px*var(--s))}
 .fx-rain i{width:1.5px;height:calc(14px*var(--s));background:linear-gradient(#fff0,#9fd0ffd0);font-size:0;--x:-10px;animation-duration:calc(var(--d)/5)}
 .fx-aurora{background:linear-gradient(115deg,transparent 10%,#34d39955 30%,#6366f155 50%,#e879f955 70%,transparent 90%);background-size:250% 100%;animation:gs2 7s ease-in-out infinite;mix-blend-mode:screen}
-.pcd{--pg:none}.pcd.pct{background:linear-gradient(180deg,color-mix(in srgb,var(--pa) 14%,#111214),#111214 55%)}
+.pcd{--pg:none}
 @media(prefers-reduced-motion:reduce){.pfx i,.pfx,.bd.bg{animation:none}}
 /* edit-profile extras */
 .fld{display:grid;gap:4px}.fld label{font-size:12px;font-weight:700;color:#b5bac1}.fld input{background:#1e1f22;border:0;border-radius:6px;padding:10px;outline:none;color:#dbdee1}.fld input:focus{box-shadow:0 0 0 2px var(--ac)}
