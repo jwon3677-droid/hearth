@@ -48,7 +48,7 @@ module.exports=({app,q,need,err,bad,bcrypt,X,wss,BADGES})=>{
  const okPw=async(u,p)=>typeof p==='string'&&await bcrypt.compare(p,u.password);
  app.put('/api/account/username',need,async(req,res)=>{const{username:n,password:p}=req.body||{};
   if(!await okPw(req.u,p))return err(res,'Wrong password',403);
-  if(!/^[A-Za-z0-9_.]{3,20}$/.test(n||''))return err(res,'Username: 3-20 letters, numbers, _ or .');if(bad(n))return err(res,'That username isn\'t allowed.');
+  if(!/^[A-Za-z0-9_.]{2,20}$/.test(n||''))return err(res,'Username: 2-20 letters, numbers, _ or .');if(bad(n))return err(res,'That username isn\'t allowed.');
   if((await q('select 1 from users where lower(username)=lower($1) and id<>$2',[n,req.u.id]))[0])return err(res,'Username taken',409);
   await q('update users set username=$1 where id=$2',[n,req.u.id]);ping();res.json({username:n})});
  app.put('/api/account/password',need,async(req,res)=>{const{current:c,next:n}=req.body||{};
