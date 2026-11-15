@@ -301,14 +301,15 @@ function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)retur
  else{const s=servers.find(x=>x.id===cur);if(s){hdr.append(el('span','',s.name),ic(IC.down,18));hdr.onclick=()=>serverMenu(s,hdr);const own=s.owner_id===me.id||isStaff();let hasV=false;
   [['text','Text Channels',IC.hash],['voice','Voice Channels',IC.spk]].forEach(([k,n,i])=>{const cs=s.channels.filter(c=>c.kind===k);if(k==='voice')hasV=cs.length>0;if(!cs.length||(k==='voice'&&hideV))return;
    const c=el('div','cat');c.append(el('span','',n));own&&c.append(ib(IC.plus,'Create Channel',()=>channelDialog(s,k),16));body.append(c);
-   cs.forEach(c=>{if(k==='text'){const r=el('div','ch'+(ch==='c'+c.id?' on':'')+(unread['c'+c.id]?' unr':''));r.append(ic(i,20),el('span','',c.name));pingBadge(r,'c'+c.id);r.onclick=()=>open('c'+c.id,'# '+c.name);body.append(r);return}
-    const live=vrooms['c'+c.id],mine=room&&room.id===c.id,r=el('div','ch vch'+(live?' live':'')+(mine?' on':''));r.append(ic(i,20),el('span','',c.name));
+   cs.forEach(c=>{if(k==='text'){const r=el('div','ch'+(ch==='c'+c.id?' on':'')+(unread['c'+c.id]?' unr':''));r.dataset.cid=c.id;r.dataset.k=k;r.append(ic(i,20),el('span','',c.name));pingBadge(r,'c'+c.id);r.onclick=()=>open('c'+c.id,'# '+c.name);body.append(r);return}
+    const live=vrooms['c'+c.id],mine=room&&room.id===c.id,r=el('div','ch vch'+(live?' live':'')+(mine?' on':''));r.dataset.cid=c.id;r.dataset.k=k;r.append(ic(i,20),el('span','',c.name));
     if(live){const t=el('span','vt',fmtT(Date.now()-live.since));t.dataset.s=live.since;r.append(t)}r.onclick=()=>vjoin(c);body.append(r);
     if(live)live.peers.forEach(p=>{const row=el('div','vp'+(speaking.has(p.id)?' speak':'')),nm=el('span','nmv',p.name);row.dataset.uid=p.id;
      const th=(memCache.find(m=>m.id===p.id)||{}).theme||(p.id===me.id?me.theme:'midnight');row.append(av(p.id,p.name,th),nm);
      if(p.deaf)row.append(vicon(IC.hpoff));else if(p.muted)row.append(vicon(IC.micoff));
      row.onclick=e=>profile(p.id,e);body.append(row)})})});
   if(hasV){const hb=el('button','hvc');hb.type='button';hb.append(ic(IC.spk,18),el('span','',hideV?'Show Voice Channels':'Hide Voice Channels'));hb.onclick=()=>{hideV=!hideV;try{localStorage.setItem('hvc',hideV?'1':'0')}catch{}draw()};body.append(hb)}}}
+ if(cur!=='home'){const s=servers.find(x=>x.id===cur);if(s&&(s.owner_id===me.id||isStaff())){chanDrag(body,s);body.oncontextmenu=e=>{if(e.target.closest('.ch,.vp,.cat,.hvc'))return;e.preventDefault();ctxOpen(e.clientX,e.clientY,[['Create Text Channel',()=>channelDialog(s,'text')],['Create Voice Channel',()=>channelDialog(s,'voice')]])}}}
  side.append(hdr,body);body.scrollTop=top;
  if(room){const v=el('div','vcp'),t=el('div','t'),srv=servers.find(x=>x.id===room.server_id);t.append(el('b','','Voice Connected'),el('small','',room.name+(srv?' / '+srv.name:'')));v.append(ic(IC.spk,20),t,ib(IC.hangup,'Disconnect',vleave,20));v.firstChild.classList.add('vcg');side.append(v)}
  const p=el('div'),mi=el('div','mi'),w=el('div','st'+stc(myPs())),nb=el('div','mn'),nn=el('b','',dn(me)),off=selfMute||selfDeaf;p.id='me';w.append(av(me.id,me.username,me.theme));nameFx(nn,me,'#f2f3f5');
@@ -347,3 +348,28 @@ function connect(){ws=new WebSocket((location.protocol==='https:'?'wss://':'ws:/
   if(d.type==='vpeers'&&room)for(const p of d.peers){names[p.id]=p.name;const pc=peer(p.id);await pc.setLocalDescription(await pc.createOffer());sig(p.id,{sdp:pc.localDescription})}
   if(d.type==='vin'&&room)names[d.id]=d.name;if(d.type==='vout')vclose(d.id);if(d.type==='sig')onSig(d)};
  ws.onclose=()=>{if(me){vcleanup();vrooms={};setTimeout(connect,2000)}}}
+
+
+// ---------- channel reordering: hold a channel, then drag it ----------
+function chanDrag(body,s){let t=null,d=null,sx=0,sy=0;
+ const rows=()=>[...body.querySelectorAll('.ch[data-cid]')];
+ const cancel=()=>{clearTimeout(t);t=null};
+ const end=async(commit)=>{if(!d)return;const{row,grp,k}=d;d=null;row.classList.remove('dragging');body.classList.remove('dragmode');
+  document.removeEventListener('pointermove',mv,true);document.removeEventListener('touchmove',tm,{capture:true});
+  {const kc=e=>{e.stopPropagation();e.preventDefault()};addEventListener('click',kc,true);setTimeout(()=>removeEventListener('click',kc,true),80)}
+  if(!commit)return;const order=rows().map(r=>+r.dataset.cid),texts=order.filter(i=>s.channels.find(c=>c.id===i&&c.kind==='text')),voices=order.filter(i=>s.channels.find(c=>c.id===i&&c.kind!=='text'));
+  s.channels.sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));draw();
+  try{await api('servers/'+s.id+'/channels/order','PUT',{ids:[...texts,...voices]});await refresh()}catch(e){fail(e);refresh()}};
+ const tm=e=>{if(d)e.preventDefault()};
+ const mv=e=>{if(!d){if(t&&Math.hypot(e.clientX-sx,e.clientY-sy)>8)cancel();return}
+  e.preventDefault();const{row,grp}=d,r=document.elementFromPoint(e.clientX,e.clientY),o=r&&r.closest('.ch[data-cid]');
+  if(o&&o!==row&&o.dataset.k===d.k){const b=o.getBoundingClientRect(),after=e.clientY>b.top+b.height/2,og=[o];let n=o.nextElementSibling;while(n&&n.classList.contains('vp')){og.push(n);n=n.nextElementSibling}
+   if(after)(og[og.length-1]).after(...grp);else o.before(...grp)}};
+ body.addEventListener('pointerdown',e=>{const row=e.target.closest('.ch[data-cid]');if(!row||e.button>0||e.target.closest('button'))return;sx=e.clientX;sy=e.clientY;cancel();
+  t=setTimeout(()=>{t=null;const grp=[row];let n=row.nextElementSibling;while(n&&n.classList.contains('vp')){grp.push(n);n=n.nextElementSibling}
+   d={row,grp,k:row.dataset.k};row.classList.add('dragging');body.classList.add('dragmode');if(navigator.vibrate)try{navigator.vibrate(15)}catch{}
+   document.addEventListener('pointermove',mv,true);document.addEventListener('touchmove',tm,{capture:true,passive:false})},380)});
+ const up=()=>{cancel();end(true)};body.addEventListener('pointerup',up);body.addEventListener('pointercancel',()=>{cancel();end(false)});
+ body.addEventListener('contextmenu',e=>{if(d||(e.pointerType==='touch'&&e.target.closest('.ch[data-cid]')))e.preventDefault()});
+}
+(()=>{const s=document.createElement('style');s.textContent='.ch[data-cid]{-webkit-touch-callout:none;user-select:none}.ch.dragging{background:#404249!important;box-shadow:0 4px 14px #0009;opacity:.9;cursor:grabbing}.dragmode{cursor:grabbing}.dragmode .ch{pointer-events:auto}';document.head.append(s)})();
