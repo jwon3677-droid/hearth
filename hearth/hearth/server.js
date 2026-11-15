@@ -22,7 +22,7 @@ const need=async(req,res,next)=>{const u=await userFrom(cookie.parse(req.headers
 const staff=(req,res,next)=>['staff','admin'].includes(req.u.role)?next():res.status(403).json({error:'Staff only'});
 const err=(res,m,c=400)=>res.status(c).json({error:m});
 app.post('/api/signup',authLimit,async(req,res)=>{const{username:n,password:p}=req.body||{};
- if(!/^[A-Za-z0-9_.]{3,20}$/.test(n||''))return err(res,'Username: 3-20 letters, numbers, _ or .');
+ if(!/^[A-Za-z0-9_.]{2,20}$/.test(n||''))return err(res,'Username: 2-20 letters, numbers, _ or .');
  if(bad(n))return err(res,'That username isn\'t allowed.');
  if(typeof p!=='string'||p.length<8||p.length>72)return err(res,'Password must be 8-72 characters');
  if((await q('select 1 from users where lower(username)=lower($1)',[n]))[0])return err(res,'Username taken',409);
