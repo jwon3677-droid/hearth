@@ -28,5 +28,5 @@ function askDialog(title,sub,build,okText,danger){return new Promise(res=>{
  ov.onmousedown=e=>{if(e.target===ov)fin(null)};
  field0=b.querySelector('input,textarea');document.addEventListener('focusin',trap,true);
  if(field0){field0.addEventListener('pointerdown',e=>e.stopPropagation());[0,30,120].forEach(t=>setTimeout(()=>{if(!done&&!ov.contains(document.activeElement)){field0.focus();field0.select()}},t));field0.focus();field0.select()}else ok.focus()})}
-function askText(title,sub,value,o={}){return askDialog(title,sub,(D,submit)=>{const i=el('input');i.value=value||'';if(o.max)i.maxLength=o.max;if(o.placeholder)i.placeholder=o.placeholder;i.onkeydown=e=>e.key==='Enter'&&submit();D.body.append(field(o.label||'',i));return()=>i.value},o.ok,o.danger)}
+function askText(title,sub,value,o={}){return askDialog(title,sub,(D,submit)=>{const i=el('input');i.value=value||'';if(o.max)i.maxLength=o.max;if(o.placeholder)i.placeholder=o.placeholder;i.onkeydown=e=>{if(e.key==='Enter')submit()};D.body.append(field(o.label||'',i));return()=>i.value},o.ok,o.danger)}
 function askConfirm(title,sub,o={}){return askDialog(title,sub,D=>{D.body.style.display='none';return()=>true},o.ok||'Confirm',o.danger).then(v=>!!v)}
