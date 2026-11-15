@@ -126,3 +126,4 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .pbs .bd.bi{margin:0}.pun{margin-top:1px}
 #bar>.ib:first-child{border-radius:8px 0 0 8px}#bar>.ib:first-child+input+#in{border-radius:0}
 .bd.bi.ico{padding:3px;margin-left:4px;cursor:default}.bd.bi.ico svg{width:16px;height:16px}#bar>.ib:first-child{color:#b5bac1;display:grid;place-items:center}#bar>.ib:first-child:hover{color:#dbdee1}#bar>.ib:first-child svg{width:24px;height:24px}
+.sd.sdi{width:18px;height:18px;border-radius:0;background:none!important;display:inline-grid;place-items:center}.sd.sdi svg{display:block}
