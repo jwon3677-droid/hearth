@@ -2,7 +2,7 @@ const $=s=>document.querySelector(s),el=(t,c,x)=>{const e=document.createElement
 const THEMES={midnight:['#5865f2','#1e1f3a'],sunset:['#ff7a59','#5b2a4e'],forest:['#3ddc97','#12332a'],candy:['#ff77c8','#3a2256'],ocean:['#2ec4ff','#0d2b45']};
 const BADGES={staff:'🛡️ Staff',og:'👑 OG',early:'🌱 Early',verified:'✔️ Verified',supporter:'💎 Supporter'};
 const EMOJI=['😀','😂','🥹','😍','😎','🤔','😭','😡','👍','👎','🙏','🔥','💯','🎉','❤️','💀','👀','✨','🚀','🎮','🍕','🐱','🐶','🌈'];
-let me,servers=[],friends=[],cur='home',ch=null,chName='',ws,room=null,stream=null,names={},pcs={},chain=Promise.resolve(),AV=0;
+let me,servers=[],friends=[],dmList=[],dmReqs=[],cur='home',ch=null,chName='',ws,room=null,stream=null,names={},pcs={},chain=Promise.resolve(),AV=0;
 const root=$('#root'),isStaff=()=>['staff','admin'].includes(me.role),dmKey=id=>'dm'+Math.min(me.id,id)+'_'+Math.max(me.id,id);
 const api=(p,m='GET',b)=>fetch('/api/'+p,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b),signal:AbortSignal.timeout(25000)}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Error');return j}).catch(e=>{throw e.name==='TimeoutError'?Error('Server is waking up or busy. Try again in a few seconds.'):e});
 const fail=e=>toast(e.message),theme=()=>document.documentElement.style.setProperty('--ac',(THEMES[me.theme]||THEMES.midnight)[0]);
@@ -57,7 +57,7 @@ async function load(){const b=$('#msgs'),tp=$('#top');b.replaceChildren();last=n
  tp.append(ic(chName[0]==='@'?IC.at:IC.hash,22),el('b','',chName.replace(/^[#@] /,'')),el('span','grow'),ib(IC.pin,'Pinned Messages',showPins,22),ib(IC.users,'Toggle member list',()=>{showMem=!showMem;draw()},22));
  $('#in').placeholder='Message '+chName;(await api('messages?channel='+ch)).forEach(m=>add(m));b.scrollTop=1e9}
 const open=(k,n)=>{ch=k;chName=n;if(k){delete unread[k];delete pings[k]}typers.clear();setReply(null);typShow();load().catch(fail);draw()};
-async function refresh(){[servers,friends]=await Promise.all([api('servers'),api('friends')]);draw();members()}
+async function refresh(){const[sv,fr,dm]=await Promise.all([api('servers'),api('friends'),api('dms').catch(()=>({}))]);servers=sv;friends=fr;dmList=dm.list||[];dmReqs=dm.reqs||[];draw();members()}
 let memTok=0;
 const APPCSS=`
 :root{--bg:#313338;--bg2:#2b2d31;--bg3:#383a40;--tx:#dbdee1;--mu:#949ba4}
