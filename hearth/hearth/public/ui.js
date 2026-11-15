@@ -30,7 +30,8 @@ function toast(m,ok){let h=$('#toasts');if(!h){h=el('div');h.id='toasts';documen
 function dialog(width){const ov=el('div','ov'),box=el('div','dg'),h=el('div','dg-h'),b=el('div','dg-b'),f=el('div','dg-f'),x=ib(IC.x,'Close',()=>D.close(),20);
  x.classList.add('dg-x');if(width)box.style.width=width;
  const esc=e=>{if(e.key==='Escape'&&ov===[...document.querySelectorAll('.ov')].pop())D.close()};
- const D={ov,box,body:b,foot:f,set(t,s){h.replaceChildren(el('h2','',t));if(s)h.append(el('p','',s));b.replaceChildren();f.replaceChildren();f.style.display=''},close(){ov.remove();removeEventListener('keydown',esc)}};
+ const under=[...document.querySelectorAll('.ov,.ep,.nsw')].filter(n=>!n.inert);under.forEach(n=>n.inert=true);
+ const D={ov,box,body:b,foot:f,set(t,s){h.replaceChildren(el('h2','',t));if(s)h.append(el('p','',s));b.replaceChildren();f.replaceChildren();f.style.display=''},close(){if(!ov.isConnected)return;ov.remove();under.forEach(n=>n.inert=false);removeEventListener('keydown',esc)}};
  addEventListener('keydown',esc);ov.onmousedown=e=>{if(e.target===ov)D.close()};box.append(x,h,b,f);ov.append(box);document.body.append(ov);return D}
 function field(label,input,hint){const w=el('div','fld'),l=el('label','',label),e=el('div','er');w.append(l,input);if(hint)w.append(el('small','mu',hint));w.append(e);w.err=m=>{e.textContent=m||''};return w}
 const opt=(icon,title,sub,fn)=>{const r=el('button','opt'),i=el('span','oi'),t=el('span','ot');r.type='button';i.append(ic(icon,22));t.append(el('b','',title));if(sub)t.append(el('small','',sub));r.append(i,t,ic(IC.right,18));r.onclick=fn;return r};
