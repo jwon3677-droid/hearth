@@ -7,9 +7,16 @@ const root=$('#root'),isStaff=()=>['staff','admin'].includes(me.role),dmKey=id=>
 const api=(p,m='GET',b)=>fetch('/api/'+p,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b)}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Error');return j});
 const fail=e=>alert(e.message),theme=()=>document.documentElement.style.setProperty('--ac',(THEMES[me.theme]||THEMES.midnight)[0]);
 function av(id,name,th){const t=THEMES[th]||THEMES.midnight,a=el('div','av',name[0].toUpperCase()),i=new Image();a.style.background=`linear-gradient(135deg,${t[0]},${t[1]})`;i.className='ai';i.onload=()=>a.replaceChildren(i);i.src='/api/avatar/'+id+'?v='+AV;return a}
-function authView(){root.replaceChildren();const f=el('div');f.id='auth';const u=el('input'),p=el('input'),e=el('div','err'),b=el('button','','Log in'),s=el('button','g','Create account');
- f.append(el('h2','','🔥 Hearth'),u,p,b,s,e);u.placeholder='Username';p.placeholder='Password (8+ chars)';p.type='password';u.autocomplete='username';
- const go=path=>async()=>{try{me=await api(path,'POST',{username:u.value,password:p.value});start()}catch(x){e.textContent=x.message}};b.onclick=go('login');s.onclick=go('signup');root.append(f)}
+function authView(){root.replaceChildren();let signup=false;const w=el('div'),f=el('div');w.id='authwrap';f.id='auth';
+ const paint=()=>{f.replaceChildren();
+  f.append(el('div','alogo','🔥 Hearth'),el('h1','',signup?'Create your account':'Welcome back'),el('p','mu',signup?'Join the fire. It only takes a minute.':'Good to see you chatting again.'));
+  const u=el('input'),p=el('input'),e=el('div','err'),pw=el('div','pw'),eye=el('button','eye','👁'),b=el('button','go',signup?'Create account':'Log in');
+  u.autocomplete='username';p.type='password';p.autocomplete=signup?'new-password':'current-password';eye.type='button';eye.onclick=()=>p.type=p.type==='password'?'text':'password';pw.append(p,eye);
+  const run=async()=>{b.disabled=true;try{me=await api(signup?'signup':'login','POST',{username:u.value,password:p.value});start()}catch(x){e.textContent=x.message;b.disabled=false}};
+  b.onclick=run;u.onkeydown=p.onkeydown=ev=>ev.key==='Enter'&&run();
+  const sw=el('a','',signup?'Log in':'Create an account'),t=el('div','sw');sw.href='#';sw.onclick=ev=>{ev.preventDefault();signup=!signup;paint()};t.append(signup?'Already have an account? ':'New here? ',sw);
+  f.append(el('label','','USERNAME'),u,el('label','','PASSWORD'),pw,e,b,t);if(signup)f.append(el('small','mu','3-20 letters, numbers, _ or . · password 8+ characters'))};
+ paint();w.append(f);root.append(w)}
 function render(m){const t=THEMES[m.theme]||THEMES.midnight,d=el('div','m'),b=el('div'),h=el('div'),n=el('span','nm',m.username);d.dataset.id=m.id;n.style.color=t[0];h.append(n);
  (m.badges||[]).forEach(k=>BADGES[k]&&h.append(el('span','bd',BADGES[k])));h.append(el('span','ts',new Date(m.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})));
  if(isStaff()){const x=el('button','x','delete');x.onclick=()=>api('staff/msg/'+m.id,'DELETE');h.append(x)}
