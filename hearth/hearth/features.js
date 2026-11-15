@@ -12,7 +12,7 @@ module.exports=({app,q,need,err,X,MSG})=>{
 
  // ---- mentions: resolved server-side so nobody can fake a ping
  const parse=async(body,ch,u)=>{const names=new Set();let ev=false;
-  for(const m of body.matchAll(/(?<![\w@])@([A-Za-z0-9_.]{3,20})/g)){let t=m[1];
+  for(const m of body.matchAll(/(?<![\w@])@([A-Za-z0-9_.]{2,20})/g)){let t=m[1];
    for(;;){const l=t.toLowerCase();if(l==='everyone'||l==='here'){ev=true;break}names.add(l);if(t.endsWith('.'))t=t.slice(0,-1);else break}}
   const ids=names.size?(await q('select id from users where id=any($1) and lower(username)=any($2) and not banned',[await X.ppl(ch),[...names]])).map(r=>r.id).filter(i=>i!==u.id):[];
   return{ids,ev:ev&&await owns(u,ch)}};
