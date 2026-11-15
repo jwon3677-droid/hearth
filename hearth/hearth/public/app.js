@@ -18,7 +18,7 @@ const AUTHCSS=`
 #aw input{background:#141517;border:1px solid #2e3035;border-radius:4px;padding:11px 12px;color:#fff;outline:0}#aw input:focus{border-color:#ff6b35}
 #aw .pw{position:relative}#aw .eye{position:absolute;right:4px;top:3px;background:none;padding:8px;opacity:.6}#aw .eye:hover{opacity:1}
 #aw .go{margin-top:16px;padding:12px;font-weight:600;border-radius:4px;background:#ff6b35}#aw .go:hover{background:#e85d28}#aw .go:disabled{opacity:.6}
-#aw .err{color:#ff7a8a;font-size:13px;min-height:0}#aw .sw{margin-top:12px;color:#9a9ca8;font-size:14px}#aw .sw a{color:#ff8a4c;text-decoration:none}#aw .sw a:hover{text-decoration:underline}
+#aw .err{color:#ff7a8a;font-size:13px;min-height:0}#aw .awsw{margin-top:12px;color:#9a9ca8;font-size:14px}#aw .awsw a{color:#ff8a4c;text-decoration:none}#aw .awsw a:hover{text-decoration:underline}
 #aw small{text-align:center;margin-top:6px}`;
 function authView(){root.replaceChildren();if(!$('#authcss')){const s=el('style');s.id='authcss';s.textContent=AUTHCSS;document.head.append(s)}
  let signup=false;const w=el('div'),f=el('div','card');w.id='aw';
@@ -27,7 +27,7 @@ function authView(){root.replaceChildren();if(!$('#authcss')){const s=el('style'
   u.autocomplete='username';p.type='password';p.autocomplete=signup?'new-password':'current-password';eye.type='button';eye.onclick=()=>p.type=p.type==='password'?'text':'password';pw.append(p,eye);
   const run=async()=>{b.disabled=true;e.textContent='';try{me=await api(signup?'signup':'login','POST',{username:u.value,password:p.value});start()}catch(x){e.textContent=x.message;b.disabled=false}};
   b.onclick=run;u.onkeydown=p.onkeydown=ev=>{if(ev.key==='Enter')run()};
-  const sw=el('a','',signup?'Log in':'Register'),t=el('div','sw');sw.href='#';sw.onclick=ev=>{ev.preventDefault();signup=!signup;paint()};t.append(signup?'Already have an account? ':'Need an account? ',sw);
+  const sw=el('a','',signup?'Log in':'Register'),t=el('div','awsw');sw.href='#';sw.onclick=ev=>{ev.preventDefault();signup=!signup;paint()};t.append(signup?'Already have an account? ':'Need an account? ',sw);
   f.append(el('label','','USERNAME'),u,el('label','','PASSWORD'),pw,e,b,t);if(signup)f.append(el('small','mu','2-20 letters, numbers, _ or . · password 8+ characters'));u.focus()};
  paint();w.append(f);root.append(w)}
 const MURI='data:image/svg+xml;utf8,'+encodeURIComponent(MASCOT);
