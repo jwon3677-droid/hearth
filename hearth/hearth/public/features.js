@@ -72,7 +72,7 @@ function nameStyleModal(){
  pv.append(bn,pa,pn,cap,el('div','pvh','In chat'),row,ft2);box.append(p,pv);ov.append(box);document.body.append(ov);sync()}
 
 // ================= 2. markdown + mentions =================
-const MDRE=/(`[^`\n]+`)|(\|\|[\s\S]+?\|\|)|(\*\*\*[^\n]+?\*\*\*)|(\*\*[\s\S]+?\*\*)|(__[\s\S]+?__)|(~~[\s\S]+?~~)|(\*[^\s*][^*\n]*\*)|(\b_[^\s_][^_\n]*_\b)|(https?:\/\/[^\s<>"']+)|((?<![\w@])@[A-Za-z0-9_.]{3,20})/g;
+const MDRE=/(`[^`\n]+`)|(\|\|[\s\S]+?\|\|)|(\*\*\*[^\n]+?\*\*\*)|(\*\*[\s\S]+?\*\*)|(__[\s\S]+?__)|(~~[\s\S]+?~~)|(\*[^\s*][^*\n]*\*)|(\b_[^\s_][^_\n]*_\b)|(https?:\/\/[^\s<>"']+)|((?<![\w@])@[A-Za-z0-9_.]{2,20})/g;
 function mentionEl(x,m){let n=x.slice(1);
  for(;;){const l=n.toLowerCase();
   if((l==='everyone'||l==='here')&&m&&m.ev)return[el('span','mention','@'+n),n.length+1];
