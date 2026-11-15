@@ -1,5 +1,6 @@
 // Hearth features: display-name styles, @mentions, replies, edit/delete, reactions, pins.
 // Everything the client shows (mention pills, reaction counts, name styles) is validated or resolved here.
+const UX=require('./ux');
 module.exports=({app,q,need,err,X,MSG})=>{
  const FONTS=['sans','slab','chunky','script','round','block','serif','marker','tech','pixel','gothic','cursive'],
   FX=['solid','gradient','neon','toon','pop','gummy','prism'],HEX=/^#[0-9a-f]{6}$/i,
@@ -23,7 +24,7 @@ module.exports=({app,q,need,err,X,MSG})=>{
   const mi=[...new Set(rows.flatMap(r=>r.mentions||[]))],ri=[...new Set(rows.map(r=>r.reply_to).filter(Boolean))];
   const[un,rr,rx]=await Promise.all([
    mi.length?q('select id,username from users where id=any($1)',[mi]):[],
-   ri.length?q('select m.id,m.body,u.id uid,u.username,u.theme,u.badges,u.nfont,u.neffect,u.ncolor,u.ncolor2 from messages m join users u on u.id=m.user_id where m.id=any($1)',[ri]):[],
+   ri.length?q('select m.id,m.body,u.id uid,u.username,u.theme,u.badges,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+' from messages m join users u on u.id=m.user_id where m.id=any($1)',[ri]):[],
    rxOf(rows.map(r=>r.id))]);
   return rows.map(r=>{const{reply_to,...o}=r,p=rr.find(x=>x.id===reply_to);
    return{...o,mn:un.filter(x=>(r.mentions||[]).includes(x.id)),rp:reply_to?(p?{...p,body:p.body.slice(0,140)}:{id:reply_to,gone:true}):null,rx:rx[r.id]||[]}})};

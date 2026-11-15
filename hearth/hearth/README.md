@@ -35,3 +35,16 @@ New columns (`users.status`, `users.cstatus`) are added automatically on start. 
 - Edit Profile is a full-screen editor with a live preview. Display name style, avatar, banner, theme and bio all live there.
 - Add a Server, Create Channel, Add Friend and Invite are real dialogs. The server name in the sidebar opens a menu (invite, create channel, leave).
 - Voice channels list who is connected under each channel, with mute/deafen icons, speaking rings and a call timer. Mute, deafen and disconnect live in the sidebar.
+
+## Profile kit (badges, effects, tags)
+New files: `profile.js` (server), `ux.js`, `public/profile2.js`, `public/favicon.svg`. New columns are added automatically on start. No new packages.
+- **Badges**: staff, verified (animated gradients), og, early, supporter, mgmt (Hearth Management), helper (Hearth Helper), bugrep, elitebug, bughunter. All icons are custom SVGs in `BD` in `profile2.js`. Staff Panel can grant any of them. To add one: add it to `BD` AND to `BADGES` in `server.js`.
+- **Profile**: display name (32), pronouns (30), 10 profile themes + custom two-color gradient, 8 profile effects (bubbles, sparkles, snow, embers, hearts, stars, aurora, rain), all in Edit Profile with a live preview.
+- **Server tags**: owners use server menu > Server Tag (2-4 chars, icon, color). Members pick one to wear under Edit Profile > Server Tag.
+- **Favicon**: the mascot, `public/favicon.svg`.
+
+## Staff admin, server settings, user settings
+New: `manage.js`, `public/settings.js`. New table `mod_servers` and column `users.allow_fr` are created on start.
+- **Staff admin on every server**: Staff Panel > Servers > Moderate. Staff/admin get owner-level control (settings, channels, kicks, delete, tag, pins, @everyone) and can read/send in any server's channels, without being a member, so they don't appear in member lists or counts. Moderated servers show a shield on the rail; "Stop Moderating" in the server menu removes it. Staff can't be removed by server owners.
+- **Server settings** (owner or staff): server menu > Server Settings: rename, invite code (copy/reset), tag, rename/delete channels, remove members, delete server (the default Lounge is protected).
+- **User settings** (gear bottom-left): My Account (username, password, delete account), Appearance (text size, compact, 24h time, reduce motion, hide effects), Notifications (mention sound, desktop notifications), Privacy (allow friend requests). Appearance/notification choices are stored in the browser.

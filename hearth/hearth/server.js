@@ -8,12 +8,13 @@ const BIG=['avttre','avttn','snttbg','puvax','genaal','jrgonpx','ergneq'].map(r1
 const LEET={'4':'a','3':'e','1':'i','!':'i','0':'o','5':'s','$':'s','7':'t','@':'a'};
 const norm=s=>s.toLowerCase().split('').map(c=>LEET[c]||c).join('');
 const bad=n=>{const s=norm(n),flat=s.replace(/[^a-z]/g,'');return BIG.some(w=>flat.includes(w))||s.split(/[^a-z]+/).concat(flat).some(t=>EXACT.includes(t))};
-const THEMES=['midnight','sunset','forest','candy','ocean'],BADGES=['staff','og','early','verified','supporter'],CH=['general','media','self-promo','flex-your-names'];
+const UX=require('./ux');
+const THEMES=['midnight','sunset','forest','candy','ocean','rose','gold','mint','lavender','mono'],BADGES=['staff','og','early','verified','supporter','mgmt','helper','bugrep','elitebug','bughunter'],CH=['general','media','self-promo','flex-your-names'];
 const app=express();app.set('trust proxy',1);
 app.use(['/api/avatar','/api/banner'],express.json({limit:'700kb'}));
 app.use(helmet({contentSecurityPolicy:{directives:{...helmet.contentSecurityPolicy.getDefaultDirectives(),'img-src':["'self'",'data:','https://cdn.jsdelivr.net']}}}),express.json({limit:'10kb'}),express.static('public'));
 app.use('/api',rl({windowMs:6e4,max:120}));const authLimit=rl({windowMs:15*6e4,max:20});
-const pub=u=>({id:u.id,username:u.username,theme:u.theme,badges:u.badges,role:u.role,nfont:u.nfont,neffect:u.neffect,ncolor:u.ncolor,ncolor2:u.ncolor2,status:u.status||'online',cstatus:u.cstatus||''});
+const pub=u=>({id:u.id,username:u.username,theme:u.theme,badges:u.badges,role:u.role,nfont:u.nfont,neffect:u.neffect,ncolor:u.ncolor,ncolor2:u.ncolor2,status:u.status||'online',cstatus:u.cstatus||'',dname:u.dname,pronouns:u.pronouns,peffect:u.peffect,pc1:u.pc1,pc2:u.pc2,tag_server:u.tag_server,allow_fr:u.allow_fr!==false});
 const sign=(res,id)=>res.cookie('t',jwt.sign({id},SECRET,{expiresIn:'7d'}),{httpOnly:true,sameSite:'strict',secure:process.env.NODE_ENV==='production',maxAge:6048e5});
 const userFrom=async t=>{try{const{id}=jwt.verify(t,SECRET);return(await q('select * from users where id=$1 and not banned',[id]))[0]}catch{}};
 const need=async(req,res,next)=>{const u=await userFrom(cookie.parse(req.headers.cookie||'').t);if(!u)return res.status(401).json({error:'Not signed in'});req.u=u;next()};
@@ -34,7 +35,7 @@ app.post('/api/login',authLimit,async(req,res)=>{const{username:n,password:p}=re
 app.post('/api/logout',(req,res)=>{res.clearCookie('t');res.json({})});
 app.get('/api/me',need,(req,res)=>res.json(pub(req.u)));
 app.put('/api/profile',need,async(req,res)=>{if(!THEMES.includes(req.body.theme))return err(res,'Bad theme');await q('update users set theme=$1 where id=$2',[req.body.theme,req.u.id]);res.json({})});
-const MSG='select m.id,m.channel,m.body,m.ts,m.edited,m.pinned,m.reply_to,m.mentions,m.ev,u.id uid,u.username,u.theme,u.badges,u.role,u.nfont,u.neffect,u.ncolor,u.ncolor2 from messages m join users u on u.id=m.user_id';
+const MSG='select m.id,m.channel,m.body,m.ts,m.edited,m.pinned,m.reply_to,m.mentions,m.ev,u.id uid,u.username,u.theme,u.badges,u.role,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+' from messages m join users u on u.id=m.user_id';
 app.get('/api/messages',need,async(req,res)=>{if(!await X.can(req.u.id,String(req.query.channel)))return err(res,'No access',403);
  res.json(await F.enrich((await q(MSG+' where m.channel=$1 order by m.id desc limit 50',[String(req.query.channel)])).reverse()))});
 app.get('/api/staff/users',need,staff,async(req,res)=>res.json(await q('select id,username,role,badges,banned from users order by id desc limit 200')));
@@ -46,6 +47,8 @@ app.post('/api/staff/role',need,async(req,res)=>{if(req.u.role!=='admin')return 
 app.delete('/api/staff/msg/:id',need,staff,async(req,res)=>{await q('delete from messages where id=$1',[+req.params.id]);bc({type:'del',id:+req.params.id});res.json({})});
 const X=require('./extra')({app,q,need,err,bad,wss:()=>wss});
 const F=require('./features')({app,q,need,err,X,MSG});
+require('./profile')({app,q,need,err,bad,THEMES,wss:()=>wss});
+require('./manage')({app,q,need,err,bad,bcrypt,X,wss:()=>wss});
 app.use((e,req,res,next)=>{console.error(e);res.status(500).json({error:'Server error'})});
 const server=http.createServer(app);
 const wss=new WebSocketServer({server,path:'/ws',maxPayload:16384,verifyClient:({origin,req})=>!origin||new URL(origin).host===req.headers.host});
@@ -80,5 +83,8 @@ create table if not exists messages(id serial primary key,channel text,user_id i
 alter table users add column if not exists nfont text default 'sans';alter table users add column if not exists neffect text default 'solid';alter table users add column if not exists ncolor text;alter table users add column if not exists ncolor2 text;
 alter table messages add column if not exists reply_to int;alter table messages add column if not exists mentions int[] default '{}';alter table messages add column if not exists ev boolean default false;alter table messages add column if not exists edited timestamptz;alter table messages add column if not exists pinned boolean default false;
 create index if not exists m_chan on messages(channel,id);
-create table if not exists reactions(msg_id int references messages(id) on delete cascade,user_id int references users(id) on delete cascade,emoji text,ts timestamptz default now(),primary key(msg_id,user_id,emoji));`);
+create table if not exists reactions(msg_id int references messages(id) on delete cascade,user_id int references users(id) on delete cascade,emoji text,ts timestamptz default now(),primary key(msg_id,user_id,emoji));
+alter table users add column if not exists dname text;alter table users add column if not exists pronouns text;alter table users add column if not exists peffect text default 'none';alter table users add column if not exists pc1 text;alter table users add column if not exists pc2 text;alter table users add column if not exists tag_server int;
+alter table users add column if not exists allow_fr boolean default true;create table if not exists mod_servers(user_id int references users(id) on delete cascade,server_id int,primary key(user_id,server_id));
+alter table servers add column if not exists tag text;alter table servers add column if not exists tag_icon text;alter table servers add column if not exists tag_color text;`);
  server.listen(process.env.PORT||3000,()=>console.log('Hearth running'))})();
