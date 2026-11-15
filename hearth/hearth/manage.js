@@ -35,6 +35,10 @@ module.exports=({app,q,need,err,bad,bcrypt,X,wss})=>{
  app.put('/api/channels/:id',need,async(req,res)=>{const[c]=await q('select server_id from channels where id=$1',[+req.params.id]);if(!c)return err(res,'Not found',404);if(!await mgr(req.u,c.server_id))return err(res,'Owner only',403);
   const n=String((req.body||{}).name||'');if(!/^[A-Za-z0-9-]{1,20}$/.test(n)||bad(n))return err(res,'Channel name: 1-20 letters, numbers or -');
   await q('update channels set name=$1 where id=$2',[n,+req.params.id]);ping();res.json({})});
+ app.put('/api/servers/:id/channels/order',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);
+  const ids=((req.body||{}).ids||[]).map(Number).filter(Number.isInteger),have=(await q('select id from channels where server_id=$1',[id])).map(r=>r.id);
+  if(ids.length!==have.length||!ids.every(i=>have.includes(i)))return err(res,'Bad channel list');
+  await q('update channels c set pos=o.p from (select * from unnest($1::int[]) with ordinality as t(id,p)) o where c.id=o.id',[ids]);ping();res.json({})});
  app.delete('/api/channels/:id',need,async(req,res)=>{const id=+req.params.id,[c]=await q('select server_id from channels where id=$1',[id]);if(!c)return err(res,'Not found',404);if(!await mgr(req.u,c.server_id))return err(res,'Owner only',403);
   if((await q('select count(*)::int n from channels where server_id=$1',[c.server_id]))[0].n<=1)return err(res,'A server needs at least one channel');
   await q('delete from messages where channel=$1',['c'+id]);await q('delete from channels where id=$1',[id]);ping();res.json({})});
