@@ -66,10 +66,35 @@ function addFriendDialog(){const D=dialog();D.set('Add friend','You can add frie
   try{await api('friends','POST',{username:n});ok.textContent='Success! Your friend request to '+n+' was sent.';i.value='';await refresh()}catch(e){f.err(e.message)}go.disabled=false});
  i.onkeydown=e=>e.key==='Enter'&&go.click();D.foot.append(btn('Close','lnk',D.close),go);i.focus()}
 
-function serverMenu(s,anchor){const r=anchor.getBoundingClientRect(),it=[['Invite People',()=>inviteDialog(s),{ic:IC.addp}]];
- if(s.owner_id===me.id)it.push(['Create Channel',()=>channelDialog(s),{ic:IC.plus}]);
- if(s.owner_id!==me.id)it.push('sep',['Leave Server',()=>leaveDialog(s),{danger:1,ic:IC.out}]);
+function serverMenu(s,anchor){const r=anchor.getBoundingClientRect(),it=[['Invite People',()=>inviteDialog(s),{ic:IC.addp}]],mg=s.owner_id===me.id||isStaff();
+ if(mg)it.push(['Server Settings',()=>serverSettings(s.id),{ic:IC.gear}],['Create Channel',()=>channelDialog(s),{ic:IC.plus}],['Server Tag',()=>tagDialog(s),{ic:IC.shield}]);
+ if(s.is_mod)it.push('sep',['Stop Moderating',()=>stopMod(s),{danger:1,ic:IC.out}]);
+ else if(s.owner_id!==me.id)it.push('sep',['Leave Server',()=>leaveDialog(s),{danger:1,ic:IC.out}]);
  ctxOpen(r.left+8,r.bottom+2,it)}
+async function stopMod(s){try{if(room&&room.server_id===s.id)vleave();await api('staff/moderate','POST',{id:s.id,on:false});await refresh();if(cur===s.id)goHome()}catch(e){fail(e)}}
+
+// ---------- server settings (owner, or staff with admin access) ----------
+function serverSettings(sid,tab='ov'){const D=dialog('640px');D.box.classList.add('wide');D.foot.style.display='none';const S=()=>servers.find(x=>x.id===sid);if(!S())return D.close();
+ const tabs=el('div','sstabs'),pane=el('div','sspane');D.body.append(tabs,pane);
+ const T=[['ov','Overview'],['ch','Channels'],['mb','Members'],['dz','Danger Zone']],go=k=>{tab=k;draw1()};
+ const run=async(fn,msg)=>{try{await fn();await refresh();msg&&toast(msg,1);draw1()}catch(e){fail(e)}};
+ function draw1(){const s=S();if(!s){D.close();return}D.set('Server Settings',s.name);tabs.replaceChildren();T.forEach(([k,n])=>{const b=el('button','sst'+(tab===k?' on':''),n);b.type='button';b.onclick=()=>go(k);tabs.append(b)});pane.replaceChildren();
+  if(s.is_mod||(s.owner_id!==me.id&&isStaff()))pane.append(el('div','modnote','🛡 Staff access — you have full admin control here. Members can\'t see you in the member list.'));
+  if(tab==='ov'){const i=el('input');i.value=s.name;i.maxLength=30;const f=field('Server name',i),sv=btn('Save Name','',async()=>{f.err();try{await api('servers/'+s.id,'PUT',{name:i.value});await refresh();toast('Server renamed',1);draw1()}catch(e){f.err(e.message)}});
+   const code=el('input');code.value=s.invite;code.readOnly=true;code.onfocus=()=>code.select();const row=el('div','copyrow');row.append(code,btn('Copy','',()=>{copyTxt(s.invite);toast('Invite copied',1)}),btn('New code','g',()=>run(async()=>{await api('servers/'+s.id+'/invite','POST')},'Invite code reset — the old one no longer works')));
+   const tg=el('div','trow');tg.append(tagChip(s.tag?{tag:s.tag,tag_icon:s.tag_icon,tag_color:s.tag_color}:null)||el('span','mu','No tag set'),btn(s.tag?'Edit Tag':'Create Tag','g',()=>tagDialog(s,draw1)));
+   pane.append(f,sv,field('Invite code',row),field('Server tag',tg))}
+  if(tab==='ch'){pane.append(btn('+ Create Channel','',()=>channelDialog(s)));s.channels.forEach(c=>{const r=el('div','srow'),n=el('div','sn');n.append(ic(c.kind==='voice'?IC.spk:IC.hash,18),el('b','',c.name));const a=el('div','sa');
+    a.append(btn('Rename','g sm',()=>{const D2=dialog();D2.set('Rename channel',c.name);const i=el('input');i.value=c.name;i.maxLength=20;const f=field('Channel name',i);D2.body.append(f);
+      const ok=btn('Save','',async()=>{f.err();try{await api('channels/'+c.id,'PUT',{name:i.value.trim().replace(/\s+/g,'-')});await refresh();D2.close();draw1()}catch(e){f.err(e.message)}});i.onkeydown=e=>e.key==='Enter'&&ok.click();D2.foot.append(btn('Cancel','lnk',D2.close),ok);i.focus()}),
+     btn('Delete','dng sm',()=>{if(confirm('Delete #'+c.name+' and all its messages?'))run(async()=>{await api('channels/'+c.id,'DELETE');if(ch==='c'+c.id)open(null,'')},'Channel deleted')}));r.append(n,a);pane.append(r)})}
+  if(tab==='mb'){pane.append(el('small','mu','Loading…'));api('members/'+s.id).then(l=>{if(tab!=='mb')return;pane.replaceChildren();l.forEach(m=>{const r=el('div','srow'),n=el('div','sn');n.append(el('b','',dn(m)),el('small','mu',m.username+(m.id===s.owner_id?' · owner':['staff','admin'].includes(m.role)?' · staff':'')));const a=el('div','sa');
+     if(m.id!==s.owner_id&&!['staff','admin'].includes(m.role)&&m.id!==me.id)a.append(btn('Remove','dng sm',()=>{if(confirm('Remove '+m.username+' from the server? They can rejoin with an invite.'))run(()=>api('servers/'+s.id+'/members/'+m.id,'DELETE'),m.username+' removed')}));r.append(n,a);pane.append(r)})}).catch(fail)}
+  if(tab==='dz'){pane.append(el('p','mu','Deleting a server permanently removes all of its channels and messages. This can\'t be undone.'));
+   if(s.invite==='lounge')pane.append(el('p','mu','The default Hearth Lounge can\'t be deleted.'));
+   else pane.append(btn('Delete Server','dng',()=>{const t=prompt('Type the server name to confirm deletion:\n'+s.name);if(t===s.name)run(async()=>{await api('servers/'+s.id,'DELETE');if(cur===s.id)goHome()},'Server deleted');else if(t!=null)toast('Name didn\'t match — nothing was deleted')}))}}
+ draw1()}
+
 function leaveDialog(s){const D=dialog();D.set('Leave '+s.name,'Are you sure you want to leave? You\'ll need a new invite code to rejoin.');D.body.style.display='none';
  const go=btn('Leave Server','dng',async()=>{go.disabled=true;try{if(room&&room.server_id===s.id)vleave();await api('servers/'+s.id+'/leave','DELETE');D.close();await refresh();if(cur===s.id)goHome()}catch(e){go.disabled=false;fail(e)}});
  D.foot.append(btn('Cancel','lnk',D.close),go)}
@@ -87,17 +112,18 @@ function popout(rect,mode,node){popClose();const p=el('div','po');p.append(node)
 // ---------- profile card (popout, full profile and the edit-profile preview all share this) ----------
 const sdot=s=>el('i','sd '+(s||'offline'));
 function pcard(u,o={}){const t=THEMES[u.theme]||THEMES.midnight,c=el('div','pcd'+(o.big?' big':'')),bh=o.big?(u.hb?140:96):(u.hb?105:60),bn=el('div','pbn'),pav=el('div','pav'),w=el('div','st'+stc(u.ps));
- c.style.setProperty('--bh',bh+'px');bn.style.height=bh+'px';bn.style.background=u.hb?`url(/api/banner/${u.id}?v=${AV}) center/cover`:`linear-gradient(135deg,${t[0]},${t[1]})`;
+ const g1=u.pc1||t[0],g2=u.pc2||t[1];c.style.setProperty('--bh',bh+'px');c.style.setProperty('--pa',g1);c.classList.add('pct');c.style.overflow='hidden';bn.style.height=bh+'px';bn.style.background=u.hb?`url(/api/banner/${u.id}?v=${AV}) center/cover`:`linear-gradient(135deg,${g1},${g2})`;
  w.append(av(u.id,u.username,u.theme));pav.append(w);c.append(bn,pav);
  if(u.cstatus){const b=el('div','sbub');b.append(rich(u.cstatus));c.append(b)}
- const body=el('div','pbody'),nm=el('div','pnm'),nn=el('span','',u.username);nameFx(nn,u,'#f2f3f5');nm.append(nn);body.append(nm);
+ const body=el('div','pbody'),nm=el('div','pnm'),nn=el('span','',dn(u));nameFx(nn,u,'#f2f3f5');nm.append(nn);const tg=tagChip(u.tg);tg&&nm.append(tg);body.append(nm);
+ const sub=[u.dname&&u.dname!==u.username?u.username:'',u.pronouns||''].filter(Boolean);if(sub.length){const s=el('div','pun');s.textContent=sub.join(' • ');body.append(s)}
  if((u.badges||[]).length){const bs=el('div','pbs');u.badges.forEach(k=>BADGES[k]&&bs.append(badge(k)));body.append(bs)}
  const box=el('div','pbox');
  if(u.bio||o.big){box.append(el('h4','','About Me'));const b=el('div','pbio');b.append(rich(u.bio||'This user hasn\'t written a bio yet.'));if(!u.bio)b.classList.add('mu');box.append(b)}
- box.append(el('h4','','Member Since'),el('div','pms',u.created?memberSince(u.created):'—'));body.append(box);c.append(body);return c}
+ box.append(el('h4','','Member Since'),el('div','pms',u.created?memberSince(u.created):'—'));body.append(box);c.append(body);const fx=pfx(u.peffect);fx&&c.append(fx);return c}
 
 function profActions(u,box,o={}){const add=(t,cls,fn)=>{const b=btn(t,cls,fn);box.append(b);return b},done=()=>o.reload?o.reload():(popClose(),refresh());
- if(u.id===me.id){add('Edit Profile','',()=>{popClose();closeFull();settings()});if(o.pop)add('View Full Profile','g',()=>{popClose();fullProfile(u.id)});return}
+ if(u.id===me.id){add('Edit Profile','',()=>{popClose();closeFull();editProfile()});if(o.pop)add('View Full Profile','g',()=>{popClose();fullProfile(u.id)});return}
  const f=u.friend;
  if(f&&f.status==='ok')add('Message','',()=>{popClose();closeFull();cur='home';open(dmKey(u.id),'@ '+u.username);members()});
  else if(!f)add('Add Friend','',()=>api('friends','POST',{username:u.username}).then(()=>{toast('Friend request sent to '+u.username,1);done()}).catch(fail));
@@ -137,53 +163,86 @@ async function selfPop(anchor){let u;try{u=await api('user/'+me.id)}catch(e){ret
  // custom status
  const cr=row(IC.smile,me.cstatus?'Edit Custom Status':'Set Custom Status',()=>{cs.classList.toggle('open');cs.querySelector('input').focus()}),cs=el('div','psub cstat'),inp=el('input'),sv=btn('Save','sm',()=>setS(me.status||'online',inp.value.trim())),cl=btn('Clear','g sm',()=>setS(me.status||'online',''));
  inp.maxLength=60;inp.value=me.cstatus||'';inp.placeholder='What\'s on your mind?';inp.onkeydown=e=>e.key==='Enter'&&sv.click();cs.append(inp,sv,cl);
- menu.append(row(IC.edit,'Edit Profile',()=>{popClose();settings()}),el('div','psep'),sr,sl,cr,cs,el('div','psep'),
+ menu.append(row(IC.edit,'Edit Profile',()=>{popClose();editProfile()}),row(IC.gear,'User Settings',()=>{popClose();settings()}),el('div','psep'),sr,sl,cr,cs,el('div','psep'),
   row(IC.shield,'Badges',()=>{popClose();badgesDialog()}),...(isStaff()?[row(IC.users,'Staff Panel',()=>{popClose();staffPanel()})]:[]),row(IC.id,'Copy User ID',()=>{copyTxt(String(me.id));toast('User ID copied',1);popClose()}),el('div','psep'),
   row(IC.out,'Log Out',()=>{popClose();logout()},{dng:1}));
  popout(rect,'top',wrap)}
 function badgesDialog(){const D=dialog();D.set('Your badges');D.foot.style.display='none';const l=el('div','blist');
  if(!(me.badges||[]).length)l.append(el('div','fpe','You don\'t have any badges yet.'));
- (me.badges||[]).forEach(k=>{if(!BADGES[k])return;const r=el('div','bl');r.append(badge(k),el('span','mu',BDESC[k]||''));l.append(r)});D.body.append(l)}
+ (me.badges||[]).forEach(k=>{if(!BADGES[k])return;const r=el('div','bl');r.append(badge(k),el('span','mu',(BD[k]||{}).d||''));l.append(r)});D.body.append(l)}
 async function logout(){await api('logout','POST').catch(()=>{});const x=ws;me=null;vcleanup();vrooms={};x&&x.close();popClose();closeFull();const e=$('.ep');e&&e.remove();authView()}
 
 // ---------- edit profile (full screen, live preview) ----------
-function settings(){return editProfile()}
+function settings(t){return userSettings(t)}
 async function editProfile(){let u;try{u=await api('user/'+me.id)}catch(e){return fail(e)}popClose();const old=$('.ep');old&&old.remove();
- const d={bio:u.bio||'',theme:me.theme},orig={...d},dirty=()=>d.bio!==orig.bio||d.theme!==orig.theme;
+ const d={bio:u.bio||'',theme:me.theme,dname:u.dname||'',pronouns:u.pronouns||'',peffect:u.peffect||'none',pc1:u.pc1||null,pc2:u.pc2||null,tag:u.tg?u.tg.id:null},orig={...d},dirty=()=>Object.keys(d).some(k=>d[k]!==orig[k]);
  const ov=el('div','ep'),L=el('div','epl'),R=el('div','epr'),prev=el('div','epp'),bar=el('div','ubar'),x=ib(IC.x,'Close (Esc)',()=>tryClose(),22);x.classList.add('epx');
  const tile=(t,...kids)=>{const w=el('section','tile'),c=el('div','tilec');c.append(...kids);w.append(el('h3','',t),c);return w};
+ const fld=(lab,inp)=>{const w=el('div','fld'),l=el('label','',lab);w.append(l,inp);return w};
  // avatar
  const ap=el('div','tav'),apaint=()=>{ap.replaceChildren(av(me.id,me.username,d.theme))};
  const rowA=el('div','trow');rowA.append(ap,btn('Change Avatar','',()=>pickImg('avatar')),btn('Remove','g',async()=>{try{await api('avatar','DELETE');AV=Date.now();draw();load();members();apaint();paint()}catch(e){fail(e)}}));
+ // display name + pronouns
+ const dni=el('input'),pri=el('input'),dc=el('div','cnt2');dni.maxLength=32;dni.placeholder=me.username;dni.value=d.dname;pri.maxLength=30;pri.placeholder='e.g. she/her, they/them';pri.value=d.pronouns;
+ const dcnt=()=>dc.textContent='Pronouns: '+(30-d.pronouns.length)+' characters left';dcnt();
+ dni.oninput=()=>{d.dname=dni.value;paint()};pri.oninput=()=>{d.pronouns=pri.value;dcnt();paint()};
  // name style
- const ns=el('button','nsb'),nspaint=()=>{ns.replaceChildren();const n=el('span','',me.username);nameFx(n,me,'#f2f3f5');ns.append(n,ic(IC.right,18))};ns.type='button';ns.onclick=nameStyleModal;
- // theme + banner
- const th=el('div','tsw'),tpaint=()=>{th.replaceChildren();Object.entries(THEMES).forEach(([k,t])=>{const s=el('button','th'+(d.theme===k?' on':''));s.type='button';s.style.background=`linear-gradient(135deg,${t[0]},${t[1]})`;s.title=k[0].toUpperCase()+k.slice(1);s.onclick=()=>{d.theme=k;tpaint();apaint();paint()};th.append(s)})};
+ const ns=el('button','nsb'),nspaint=()=>{ns.replaceChildren();const n=el('span','',d.dname||me.username);nameFx(n,me,'#f2f3f5');ns.append(n,ic(IC.right,18))};ns.type='button';ns.onclick=nameStyleModal;
+ // theme presets + custom colors + banner
+ const th=el('div','tsw'),tpaint=()=>{th.replaceChildren();Object.entries(THEMES).forEach(([k,t])=>{const s=el('button','th'+(d.theme===k&&!d.pc1?' on':''));s.type='button';s.style.background=`linear-gradient(135deg,${t[0]},${t[1]})`;s.title=k[0].toUpperCase()+k.slice(1);s.onclick=()=>{d.theme=k;d.pc1=d.pc2=null;c1.value=t[0];c2.value=t[1];tpaint();apaint();paint()};th.append(s)})};
+ const c1=el('input'),c2=el('input'),cr=el('div','cr');c1.type=c2.type='color';c1.value=d.pc1||(THEMES[d.theme]||THEMES.midnight)[0];c2.value=d.pc2||(THEMES[d.theme]||THEMES.midnight)[1];
+ const cset=()=>{d.pc1=c1.value;d.pc2=c2.value;tpaint();paint()};c1.oninput=c2.oninput=cset;cr.append(c1,c2,el('span','','Custom profile colors'),btn('Reset','g sm',()=>{d.pc1=d.pc2=null;c1.value=(THEMES[d.theme]||THEMES.midnight)[0];c2.value=(THEMES[d.theme]||THEMES.midnight)[1];tpaint();paint()}));
  const rowB=el('div','trow');rowB.append(btn('Change Banner','',()=>pickImg('banner')),btn('Remove','g',async()=>{try{await api('banner','DELETE');u.hb=false;AV=Date.now();paint();load();members()}catch(e){fail(e)}}));
+ // profile effects
+ const eg=el('div','efg'),epaint=()=>{eg.replaceChildren();PEFFECTS.forEach(([k,l])=>{const b=el('button','efb'+(d.peffect===k?' on':''));b.type='button';const f=pfx(k);f&&b.append(f);b.append(el('span','',l));b.onclick=()=>{d.peffect=k;epaint();paint()};eg.append(b)})};
+ // server tag
+ const tg=el('div','tgl'),tpick=()=>{tg.replaceChildren();const row=(id,lab,tgd,own)=>{const r=el('div','tgr'+(d.tag===id?' on':''));r.append(tagChip(tgd)||el('span','mu','—'),el('span','grow',lab));r.onclick=()=>{d.tag=id;tpick();paint()};tg.append(r)};
+  row(null,'No server tag',null);servers.filter(s=>s.tag).forEach(s=>row(s.id,s.name,{tag:s.tag,tag_icon:s.tag_icon,tag_color:s.tag_color}));
+  servers.filter(s=>s.owner_id===me.id).forEach(s=>tg.append(btn((s.tag?'Edit tag for ':'Create a tag for ')+s.name,'g sm',()=>tagDialog(s,()=>{tpick();paint()}))));
+  if(!servers.some(s=>s.tag))tg.append(el('div','cnt2','None of your servers have a tag yet. Server owners can create one.'))};
  // bio
  const ta=el('textarea'),cnt=el('div','cnt2');ta.value=d.bio;ta.maxLength=190;ta.placeholder='Tell people a little about yourself';ta.rows=4;
  ta.oninput=()=>{d.bio=ta.value;cnt.textContent=(190-d.bio.length)+' characters left';paint()};cnt.textContent=(190-d.bio.length)+' characters left';
- L.append(el('div','eph','Main Profile'),tile('Avatar',rowA),tile('Display Name Style',ns),tile('Theme & Banner',th,rowB),tile('About Me',ta,cnt));
+ L.append(el('div','eph','Main Profile'),tile('Avatar',rowA),tile('Display Name & Pronouns',fld('Display name',dni),fld('Pronouns (max 30)',pri),dc),tile('Display Name Style',ns),tile('Profile Theme & Banner',th,cr,rowB),tile('Profile Effect',eg),tile('Server Tag',tg),tile('About Me',ta,cnt));
  const lo=btn('Log Out','g wide',logout);L.append(lo);
- // preview + save bar
- const rs=btn('Reset','lnk',()=>{Object.assign(d,orig);ta.value=d.bio;ta.oninput();tpaint();apaint();paint()}),sv=btn('Save Changes','ok',async()=>{sv.disabled=true;
-  try{if(d.bio!==orig.bio)await api('bio','PUT',{bio:d.bio});if(d.theme!==orig.theme){await api('profile','PUT',{theme:d.theme});me.theme=d.theme;theme()}Object.assign(orig,d);draw();members();load().catch(()=>{});paint();toast('Profile saved',1)}catch(e){fail(e)}sv.disabled=false});
+ const rs=btn('Reset','lnk',()=>{Object.assign(d,orig);ta.value=d.bio;dni.value=d.dname;pri.value=d.pronouns;c1.value=d.pc1||(THEMES[d.theme]||THEMES.midnight)[0];c2.value=d.pc2||(THEMES[d.theme]||THEMES.midnight)[1];ta.oninput();dcnt();tpaint();epaint();tpick();apaint();paint()}),
+ sv=btn('Save Changes','ok',async()=>{sv.disabled=true;
+  try{if(d.bio!==orig.bio)await api('bio','PUT',{bio:d.bio});
+   await api('profile2','PUT',{dname:d.dname,pronouns:d.pronouns,theme:d.theme,peffect:d.peffect,pc1:d.pc1,pc2:d.pc2});
+   if(d.tag!==orig.tag)await api('me/tag','PUT',{server_id:d.tag});
+   Object.assign(me,{dname:d.dname.trim()||null,pronouns:d.pronouns.trim()||null,theme:d.theme,peffect:d.peffect,pc1:d.pc1,pc2:d.pc2,tag_server:d.tag});theme();
+   Object.assign(orig,d);draw();members();load().catch(()=>{});paint();toast('Profile saved',1)}catch(e){fail(e)}sv.disabled=false});
  bar.append(el('span','','Careful — you have unsaved changes!'),el('span','grow'),rs,sv);
- const paint=()=>{prev.replaceChildren(el('div','eplabel','Preview'),pcard({id:me.id,username:me.username,bio:d.bio,theme:d.theme,badges:me.badges,created:u.created,hb:u.hb,nfont:me.nfont,neffect:me.neffect,ncolor:me.ncolor,ncolor2:me.ncolor2,ps:myPs(),cstatus:me.cstatus},{big:true}));
-  R.style.setProperty('--g',(THEMES[d.theme]||THEMES.midnight)[0]);bar.classList.toggle('show',dirty())};
+ const paint=()=>{const s=servers.find(z=>z.id===d.tag&&z.tag);nspaint();prev.replaceChildren(el('div','eplabel','Preview'),pcard({id:me.id,username:me.username,dname:d.dname.trim(),pronouns:d.pronouns.trim(),peffect:d.peffect,pc1:d.pc1,pc2:d.pc2,tg:s?{tag:s.tag,tag_icon:s.tag_icon,tag_color:s.tag_color}:null,bio:d.bio,theme:d.theme,badges:me.badges,created:u.created,hb:u.hb,nfont:me.nfont,neffect:me.neffect,ncolor:me.ncolor,ncolor2:me.ncolor2,ps:myPs(),cstatus:me.cstatus},{big:true}));
+  R.style.setProperty('--g',d.pc1||(THEMES[d.theme]||THEMES.midnight)[0]);bar.classList.toggle('show',dirty())};
  const key=e=>{if(e.key==='Escape'&&!$('.nsw')&&!$('.ov')&&!popEl)tryClose()},kill=()=>{ov.remove();removeEventListener('keydown',key);window.onImg=window.onNameStyle=null};
  const tryClose=()=>{if(dirty()){bar.classList.remove('shake');void bar.offsetWidth;bar.classList.add('shake');return}kill()};
  window.onImg=k=>{if(k==='banner')u.hb=true;apaint();paint()};window.onNameStyle=()=>{nspaint();paint()};
- R.append(prev,bar);ov.append(L,R,x);document.body.append(ov);addEventListener('keydown',key);apaint();nspaint();tpaint();paint()}
+ R.append(prev,bar);ov.append(L,R,x);document.body.append(ov);addEventListener('key'+'down',key);apaint();nspaint();tpaint();epaint();tpick();paint()}
+
+// ---------- server tag editor (owner) ----------
+function tagDialog(s,done){const D=dialog();D.set('Server tag','Members can wear this tag next to their name. 2-4 letters or numbers.');
+ let ico=s.tag_icon||TAG_ICONS[0],col=s.tag_color||'#5865f2';const i=el('input');i.maxLength=4;i.placeholder='TAG';i.value=s.tag||'';const f=field('Tag',i),pv=el('div','tgl'),ig=el('div','tgi'),cp=el('input');cp.type='color';cp.value=col;
+ const draw1=()=>{pv.replaceChildren(tagChip({tag:(i.value||'TAG').toUpperCase(),tag_icon:ico,tag_color:col}));[...ig.children].forEach((b,k)=>b.classList.toggle('on',TAG_ICONS[k]===ico))};
+ TAG_ICONS.forEach(k=>{const b=el('button');b.type='button';b.append(tagIcon(k,18));b.onclick=()=>{ico=k;draw1()};ig.append(b)});
+ i.oninput=()=>{i.value=i.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();draw1()};cp.oninput=()=>{col=cp.value;draw1()};
+ D.body.append(f,field('Icon',ig),field('Color',cp),field('Preview',pv));draw1();
+ const save=async b=>{b.disabled=true;f.err();try{await api('servers/'+s.id+'/tag','PUT',b.rm?{tag:''}:{tag:i.value,icon:ico,color:col});await refresh();const n=servers.find(z=>z.id===s.id);if(n)Object.assign(s,n);D.close();done&&done()}catch(e){f.err(e.message);b.disabled=false}};
+ const go=btn('Save Tag','',()=>save(go));D.foot.append(...(s.tag?[Object.assign(btn('Remove Tag','dng',()=>save(rm)),{})]:[]),btn('Cancel','lnk',D.close),go);const rm=D.foot.querySelector('.dng');rm&&(rm.rm=1);i.focus()}
 
 // ---------- staff panel ----------
-async function staffPanel(){const D=dialog('720px');D.box.classList.add('wide');
- const render=async()=>{let us;try{us=await api('staff/users')}catch(e){D.close();return fail(e)}D.set('Staff panel','Manage badges, roles and bans.');D.foot.style.display='none';
+async function staffPanel(tab='users'){const D=dialog('720px');D.box.classList.add('wide');
+ const render=async()=>{D.body.replaceChildren();const tb=el('div','sstabs');[['users','Users'],['servers','Servers']].forEach(([k,n])=>{const b=el('button','sst'+(tab===k?' on':''),n);b.type='button';b.onclick=()=>{tab=k;render()};tb.append(b)});
+  let us;try{us=await api(tab==='users'?'staff/users':'staff/servers')}catch(e){D.close();return fail(e)}D.set('Staff panel',tab==='users'?'Manage badges, roles and bans.':'Admin access to every server — invisible to members.');D.foot.style.display='none';D.body.append(tb);
+  const go=(p,b)=>async()=>{try{await api(p,'POST',b);render()}catch(e){fail(e)}};
+  if(tab==='servers'){us.forEach(s=>{const r=el('div','srow'),n=el('div','sn'),act=el('div','sa');n.append(el('b','',s.name+(s.tag?'  ['+s.tag+']':'')),el('small','mu','owner '+(s.owner||'—')+' · '+s.members+' members · '+s.channels+' channels'));
+    if(s.joined)act.append(el('small','mu','you\'re a member'));
+    act.append(btn(s.moderating?'Open':'Moderate','sm',async()=>{try{if(!s.moderating)await api('staff/moderate','POST',{id:s.id,on:true});await refresh();D.close();goServer(s.id)}catch(e){fail(e)}}));
+    if(s.moderating)act.append(btn('Stop','g sm',go('staff/moderate',{id:s.id,on:false})));r.append(n,act);D.body.append(r)});return}
   us.forEach(u=>{const r=el('div','srow'),n=el('div','sn'),act=el('div','sa');n.append(el('b','',u.username),el('small','mu',(u.role!=='user'?u.role:'member')+(u.banned?' · banned':'')));
-   const go=(p,b)=>async()=>{try{await api(p,'POST',b);render()}catch(e){fail(e)}};
    if(u.role==='user')act.append(btn(u.banned?'Unban':'Ban',u.banned?'g sm':'dng sm',go('staff/ban',{id:u.id,banned:!u.banned})));
    if(me.role==='admin'&&u.role!=='admin')act.append(btn(u.role==='staff'?'Demote':'Make staff','g sm',go('staff/role',{id:u.id,role:u.role==='staff'?'user':'staff'})));
-   Object.keys(BADGES).forEach(k=>{const has=u.badges.includes(k),b=btn((has?'− ':'+ ')+k,'g sm'+(has?' on':''),go('staff/badge',{id:u.id,badge:k,on:!has}));act.append(b)});r.append(n,act);D.body.append(r)})};
+   Object.keys(BADGES).forEach(k=>{const has=u.badges.includes(k),b=btn((has?'− ':'+ ')+BADGES[k],'g sm'+(has?' on':''),go('staff/badge',{id:u.id,badge:k,on:!has}));act.append(b)});r.append(n,act);D.body.append(r)})};
  render()}
 
 // ---------- members list ----------
@@ -203,7 +262,7 @@ const fmtT=ms=>{const s=Math.max(0,Math.floor(ms/1e3)),h=Math.floor(s/3600),m=Ma
 function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)return;const sc=side.querySelector('.sbody'),top=sc?sc.scrollTop:0;rail.replaceChildren();side.replaceChildren();
  const rb=(c,tt,on,fn,cls)=>{const b=el('div','rb'+(on?' on':'')+(cls?' '+cls:''));typeof c==='string'?b.textContent=c:b.append(c);b.title=tt;b.onclick=fn;rail.append(b);return b},home=new Image();home.src=MURI;
  railBadge(rb(home,'Home & DMs',cur==='home',goHome),friends.filter(f=>f.status==='ok').map(f=>dmKey(f.id)));rail.append(el('div','sep'));
- servers.forEach(s=>railBadge(rb(initials(s.name),s.name,cur===s.id,()=>goServer(s.id)),s.channels.map(c=>'c'+c.id)));
+ servers.forEach(s=>{const b=rb(initials(s.name),s.name+(s.is_mod?' (moderating)':''),cur===s.id,()=>goServer(s.id));if(s.is_mod){b.classList.add('modrb');b.append(el('i','modmk','🛡'))}railBadge(b,s.channels.map(c=>'c'+c.id))});
  rb(ic(IC.plus,22),'Add a Server',false,addServerDialog,'add');
  $('#app').classList.toggle('nomem',cur==='home'||!showMem);
  const hdr=el('div','sh'),body=el('div','sbody');
@@ -215,7 +274,7 @@ function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)retur
   const c=el('div','cat');c.append(el('span','','Direct Messages'),ib(IC.plus,'Add Friend',addFriendDialog,16));body.append(c);
   const dms=friends.filter(f=>f.status==='ok');if(!dms.length)body.append(el('div','sempty','No conversations yet. Add a friend to start one.'));
   dms.forEach(f=>{const k=dmKey(f.id),r=el('div','ch'+(ch===k?' on':'')+(unread[k]?' unr':'')),w=el('div','st'+stc(f.ps));w.append(av(f.id,f.username,f.theme));r.append(w,el('span','',f.username));pingBadge(r,k);r.onclick=()=>open(k,'@ '+f.username);body.append(r)})}
- else{const s=servers.find(x=>x.id===cur);if(s){hdr.append(el('span','',s.name),ic(IC.down,18));hdr.onclick=()=>serverMenu(s,hdr);const own=s.owner_id===me.id;let hasV=false;
+ else{const s=servers.find(x=>x.id===cur);if(s){hdr.append(el('span','',s.name),ic(IC.down,18));hdr.onclick=()=>serverMenu(s,hdr);const own=s.owner_id===me.id||isStaff();let hasV=false;
   [['text','Text Channels',IC.hash],['voice','Voice Channels',IC.spk]].forEach(([k,n,i])=>{const cs=s.channels.filter(c=>c.kind===k);if(k==='voice')hasV=cs.length>0;if(!cs.length||(k==='voice'&&hideV))return;
    const c=el('div','cat');c.append(el('span','',n));own&&c.append(ib(IC.plus,'Create Channel',()=>channelDialog(s,k),16));body.append(c);
    cs.forEach(c=>{if(k==='text'){const r=el('div','ch'+(ch==='c'+c.id?' on':'')+(unread['c'+c.id]?' unr':''));r.append(ic(i,20),el('span','',c.name));pingBadge(r,'c'+c.id);r.onclick=()=>open('c'+c.id,'# '+c.name);body.append(r);return}
@@ -228,7 +287,7 @@ function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)retur
   if(hasV){const hb=el('button','hvc');hb.type='button';hb.append(ic(IC.spk,18),el('span','',hideV?'Show Voice Channels':'Hide Voice Channels'));hb.onclick=()=>{hideV=!hideV;try{localStorage.setItem('hvc',hideV?'1':'0')}catch{}draw()};body.append(hb)}}}
  side.append(hdr,body);body.scrollTop=top;
  if(room){const v=el('div','vcp'),t=el('div','t'),srv=servers.find(x=>x.id===room.server_id);t.append(el('b','','Voice Connected'),el('small','',room.name+(srv?' / '+srv.name:'')));v.append(ic(IC.spk,20),t,ib(IC.hangup,'Disconnect',vleave,20));v.firstChild.classList.add('vcg');side.append(v)}
- const p=el('div'),mi=el('div','mi'),w=el('div','st'+stc(myPs())),nb=el('div','mn'),nn=el('b','',me.username),off=selfMute||selfDeaf;p.id='me';w.append(av(me.id,me.username,me.theme));nameFx(nn,me,'#f2f3f5');
+ const p=el('div'),mi=el('div','mi'),w=el('div','st'+stc(myPs())),nb=el('div','mn'),nn=el('b','',dn(me)),off=selfMute||selfDeaf;p.id='me';w.append(av(me.id,me.username,me.theme));nameFx(nn,me,'#f2f3f5');
  nb.append(nn,el('small','',room?'In voice':(me.cstatus||STAT[me.status||'online'])));mi.append(w,nb);mi.onclick=()=>selfPop(p);p.append(mi);
  const mb=ib(off?IC.micoff:IC.mic,selfMute?'Unmute':'Mute',toggleMute,20),db=ib(selfDeaf?IC.hpoff:IC.hp,selfDeaf?'Undeafen':'Deafen',toggleDeaf,20);if(off)mb.classList.add('bad');if(selfDeaf)db.classList.add('bad');
  p.append(mb,db,ib(IC.gear,'User settings',settings,20));side.append(p)}

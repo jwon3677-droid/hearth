@@ -46,7 +46,6 @@ function pickerFill(emo,pk){const tabs=el('div','et'),grid=el('div','eg');emo.ap
  CATS.forEach((c,k)=>{const t=el('span');t.append(rich(c[0]));t.onclick=()=>show(k);tabs.append(t)});show(0)}
 // ---- messages
 const hue=s=>Math.abs([...s].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7))%360;
-const badge=k=>{const s=el('span','bd'+(k==='staff'||k==='og'?' hot':''));s.append(rich(BADGES[k]));return s};
 let last=null;
 // render() lives in features.js
 function add(m,isNew){const box=$('#msgs'),near=box.scrollHeight-box.scrollTop-box.clientHeight<150,d=new Date(m.ts),day=d.toDateString();

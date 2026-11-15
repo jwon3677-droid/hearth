@@ -118,7 +118,7 @@ function composer(i,bar,send){const ac=el('div'),rb=el('div'),ty=el('div');ac.id
  const hide=()=>{ac.style.display='none';items=[];tok=null};
  const draw2=()=>{ac.replaceChildren(el('div','ah','Members'));items.forEach((u,k)=>{const r=el('div','ar'+(k===sel?' on':''));
    if(u.special){r.append(el('span','ai0','@'),el('b','',u.special),el('span','mu',u.desc))}
-   else{const w=el('div','st'+(u.online?' on':'')),n=el('b','',u.username);w.append(av(u.id,u.username,u.theme));nameFx(n,u,(THEMES[u.theme]||THEMES.midnight)[0]);r.append(w,n)}
+   else{const w=el('div','st'+(u.online?' on':'')),n=el('b','',dn(u));w.append(av(u.id,u.username,u.theme));nameFx(n,u,(THEMES[u.theme]||THEMES.midnight)[0]);r.append(w,n)}
    r.onmousedown=e=>{e.preventDefault();pick(k)};r.onmouseenter=()=>{sel=k;[...ac.querySelectorAll('.ar')].forEach((x,j)=>x.classList.toggle('on',j===k))};ac.append(r)});ac.style.display='block'};
  const upd=()=>{const pos=i.selectionStart,m=/(?:^|[\s(])@([A-Za-z0-9_.]*)$/.exec(i.value.slice(0,pos));if(!m||!ch)return hide();
   tok={start:pos-m[1].length-1,end:pos};items=acList(m[1].toLowerCase());if(!items.length)return hide();sel=Math.min(sel,items.length-1);draw2()};
@@ -179,19 +179,19 @@ function editMsg(d){const m=d._m;if(!m||m.uid!==me.id||d.classList.contains('edi
 // ================= 5. reactions, replies, pins, typing, unread =================
 function render(m,grp,isNew){
  const t=THEMES[m.theme]||THEMES.midnight,d=el('div','m'+(grp?' c':'')+(isNew?' new':'')+(hasPing(m)?' ping':'')),b=el('div','mb'),body=el('div','mt'),
-  time=new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  time=new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:PREFS.t24?false:undefined});
  d.dataset.id=m.id;d.dataset.uid=m.uid;d._m=m;body.append(md(m.body,m));if(isBig(m.body))body.classList.add('big');
  if(m.edited){const e=el('span','ed','(edited)');e.title='Edited '+new Date(m.edited).toLocaleString();body.append(e)}
  if(m.rp){d.classList.add('hasrp');d.append(replyRef(m.rp))}
  if(grp){d.append(el('span','ht',time.replace(/ ?[AP]M/,'')));b.append(body)}
- else{const h=el('div','mh2'),n=el('span','nm',m.username),a=av(m.uid,m.username,m.theme);nameFx(n,m,t[0]);n.onclick=a.onclick=e=>profile(m.uid,e);h.append(n);
+ else{const h=el('div','mh2'),n=el('span','nm',dn(m)),a=av(m.uid,m.username,m.theme);nameFx(n,m,t[0]);n.onclick=a.onclick=e=>profile(m.uid,e);h.append(n);{const tc=tagChip(m.tg);tc&&h.append(tc)}
   (m.badges||[]).forEach(k=>BADGES[k]&&h.append(badge(k)));h.append(el('span','ts',time));
   b.append(h,body);d.append(a)}
  if(m.pinned){const pp=ic(IC.pin,12);pp.classList.add('pinned');pp.setAttribute('aria-label','Pinned');(grp?body:b.querySelector('.mh2')).append(pp)}
  b.append(rxBar(m));d.append(b,toolbar(m,d));
  d.oncontextmenu=e=>{if(e.target.closest('input,textarea,.eb'))return;e.preventDefault();msgMenu(m,d,e.clientX,e.clientY,e.target)};return d}
 function replyRef(p){const r=el('div','rp');if(p.gone){r.append(el('i','','Original message was deleted'));return r}
- const n=el('span','nm',p.username),t=el('span','rt');nameFx(n,p,(THEMES[p.theme]||THEMES.midnight)[0]);t.append(rich(p.body.replace(/\s+/g,' ')));
+ const n=el('span','nm',dn(p)),t=el('span','rt');nameFx(n,p,(THEMES[p.theme]||THEMES.midnight)[0]);t.append(rich(p.body.replace(/\s+/g,' ')));
  r.append(av(p.uid,p.username,p.theme),n,t);r.onclick=()=>jumpTo(p.id);return r}
 function jumpTo(id){const n=document.querySelector(`#msgs .m[data-id="${id}"]`);if(!n)return;n.scrollIntoView({block:'center',behavior:'smooth'});n.classList.remove('hl');void n.offsetWidth;n.classList.add('hl');setTimeout(()=>n.classList.remove('hl'),2200)}
 function rxBar(m){const r=el('div','rx');
@@ -205,7 +205,7 @@ function reactPick(d){let p=$('#rpick');if(!p){p=el('div');p.id='rpick';pickerFi
 async function showPins(){if(!ch)return;const old=$('#pinp');if(old){old.remove();return}let l;try{l=await api('pins?channel='+ch)}catch(e){return fail(e)}
  const p=el('div');p.id='pinp';p.append(el('div','ph','Pinned Messages'));
  if(!l.length)p.append(el('div','pe','No pinned messages in this channel yet.'));
- l.forEach(m=>{const r=el('div','pr'),hd=el('div','mh2'),n=el('span','nm',m.username),b=el('div','mt'),j=el('button','g','Jump');nameFx(n,m,(THEMES[m.theme]||THEMES.midnight)[0]);b.append(md(m.body,m));
+ l.forEach(m=>{const r=el('div','pr'),hd=el('div','mh2'),n=el('span','nm',dn(m)),b=el('div','mt'),j=el('button','g','Jump');nameFx(n,m,(THEMES[m.theme]||THEMES.midnight)[0]);b.append(md(m.body,m));
   hd.append(n,el('span','ts',new Date(m.ts).toLocaleString([],{dateStyle:'medium',timeStyle:'short'})));j.onclick=()=>{p.remove();jumpTo(m.id)};r.append(hd,b,j);p.append(r)});
  $('#main').append(p);const out=e=>{if(!p.contains(e.target)&&!e.target.closest('.ib')){p.remove();document.removeEventListener('mousedown',out,true)}};setTimeout(()=>document.addEventListener('mousedown',out,true),0)}
 function typShow(){const t=$('#typ');if(!t)return;const now=Date.now();[...typers].forEach(([k,v])=>v.t<now&&typers.delete(k));t.replaceChildren();const n=[...typers.values()].map(v=>v.name);if(!n.length)return;
@@ -215,7 +215,7 @@ setInterval(typShow,1000);
 const tabPing=()=>{tabN++;document.title='('+tabN+') Hearth'};document.addEventListener('visibilitychange',()=>{if(!document.hidden){tabN=0;document.title='Hearth'}});
 function onMsg(m){typers.delete(m.uid);typShow();
  if(m.channel===ch){add(m,true);if(document.hidden&&isPing(m))tabPing();return}
- if(m.uid===me.id)return;unread[m.channel]=1;if(isPing(m)){pings[m.channel]=(pings[m.channel]||0)+1;tabPing()}draw()}
+ if(m.uid===me.id)return;unread[m.channel]=1;if(isPing(m)){pings[m.channel]=(pings[m.channel]||0)+1;tabPing();notifyPing(m)}draw()}
 function onDel(id){const n=document.querySelector(`#msgs .m[data-id="${id}"]`);if(!n)return;const nx=n.nextElementSibling,head=!n.classList.contains('c');n.remove();
  if(head&&nx&&nx.classList.contains('m')&&nx.classList.contains('c')&&nx._m)nx.replaceWith(render(nx._m,false,false))}
 function redo(n,m){const nn=render(m,n.classList.contains('c'),false);n.replaceWith(nn)}
