@@ -10,7 +10,7 @@ module.exports=({app,q,need,err,bad,bcrypt,X,wss})=>{
   if(ch.length)await q('delete from messages where channel=any($1)',[ch.map(c=>'c'+c.id)]);
   await q('update users set tag_server=null where tag_server=$1',[sid]);await q('delete from mod_servers where server_id=$1',[sid]);
   await q('delete from channels where server_id=$1',[sid]);await q('delete from members where server_id=$1',[sid]);await q('delete from servers where id=$1',[sid])};
- const isLounge=async sid=>(await q("select 1 from servers where id=$1 and invite='lounge'",[sid]))[0];
+ const isLounge=async sid=>(await q("select 1 from servers where id=$1 and invite='hearth'",[sid]))[0];
  const nm=(res,n)=>{n=String(n||'').trim();if(n.length<2||n.length>30){err(res,'Server name: 2-30 characters');return null}if(bad(n)){err(res,'That name isn\'t allowed.');return null}return n};
 
  // ---- staff: browse every server, start/stop moderating (admin access without joining)
