@@ -53,7 +53,7 @@ const isBig=t=>!!t.trim()&&t.length<60&&!t.replace(EMO,'').trim();
 const CATS=[['😀',[[0x1F600,0x1F64F],[0x1F910,0x1F92F],[0x1F970,0x1F97A]],['☺️']],['👋',[[0x1F44A,0x1F450],[0x1F466,0x1F483],[0x1F918,0x1F91F]],['✌️']],['🐶',[[0x1F400,0x1F43E],[0x1F980,0x1F9AE]],[]],['🍕',[[0x1F32D,0x1F32F],[0x1F345,0x1F37F],[0x1F950,0x1F96B]],[]],['⚽',[[0x1F3A0,0x1F3CA],[0x1F680,0x1F6A4],[0x26BD,0x26BE]],[]],['❤️',[[0x1F493,0x1F49F],[0x1F4A2,0x1F4AF],[0x1F4B0,0x1F4FF]],['❤️','✔️','♥️']]];
 function pickerFill(emo,i){const tabs=el('div','et'),grid=el('div','eg');emo.append(tabs,grid);
  const show=k=>{grid.replaceChildren();const list=[...CATS[k][2]];CATS[k][1].forEach(([a,b])=>{for(let c=a;c<=b;c++){const s=String.fromCodePoint(c);if(/\p{Emoji_Presentation}/u.test(s))list.push(s)}});
-  list.forEach(s=>{const b=el('span');b.append(rich(s));b.onclick=()=>{i.value+=s;i.focus()};grid.append(b)});[...tabs.children].forEach((t,j)=>t.classList.toggle('on',j===k))};
+  list.forEach(s=>{const b=el('span');b.append(rich(s));const g=b.firstChild;if(g&&g.tagName==='IMG')g.onerror=()=>b.remove();b.onclick=()=>{i.value+=s;i.focus()};grid.append(b)});[...tabs.children].forEach((t,j)=>t.classList.toggle('on',j===k))};
  CATS.forEach((c,k)=>{const t=el('span');t.append(rich(c[0]));t.onclick=()=>show(k);tabs.append(t)});show(0)}
 // ---- messages
 const hue=s=>Math.abs([...s].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7))%360;
@@ -62,7 +62,7 @@ let last=null;
 function render(m,grp,isNew){const t=THEMES[m.theme]||THEMES.midnight,d=el('div','m'+(grp?' c':'')+(isNew?' new':'')),b=el('div','mb'),body=el('div','mt'),time=new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});d.dataset.id=m.id;body.append(rich(m.body));if(isBig(m.body))body.classList.add('big');
  if(grp){d.append(el('span','ht',time.replace(/ ?[AP]M/,'')));b.append(body)}
  else{const h=el('div','mh2'),n=el('span','nm'+((m.badges||[]).includes('supporter')?' sup':''),m.username),a=av(m.uid,m.username,m.theme);n.style.color=t[0];n.onclick=a.onclick=()=>profile(m.uid);h.append(n);(m.badges||[]).forEach(k=>BADGES[k]&&h.append(badge(k)));h.append(el('span','ts',time));b.append(h,body);d.append(a)}
- if(isStaff())d.append(ib(IC.trash,'Delete message',()=>api('staff/msg/'+m.id,'DELETE'),16)).lastChild.classList.add('del');
+ if(isStaff()){const x=ib(IC.trash,'Delete message',()=>api('staff/msg/'+m.id,'DELETE'),16);x.classList.add('del');d.append(x)}
  d.append(b);return d}
 function add(m,isNew){const box=$('#msgs'),near=box.scrollHeight-box.scrollTop-box.clientHeight<150,d=new Date(m.ts),day=d.toDateString();
  if(!last||last.day!==day){box.append(el('div','dd',day===new Date().toDateString()?'Today':d.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric',year:'numeric'})));last=null}
@@ -91,9 +91,12 @@ function draw(){const rail=$('#rail'),side=$('#side');rail.replaceChildren();sid
   m.onclick=()=>{const t=stream.getAudioTracks()[0];t.enabled=!t.enabled;m.textContent=t.enabled?'Mute':'Unmute'};l.onclick=vleave;side.append(v)}
  const p=el('div'),w=el('div','mi'),sw=el('div','st on'),nb=el('div','mn');p.id='me';sw.append(av(me.id,me.username,me.theme));sw.onclick=()=>profile(me.id);nb.append(el('b','',me.username),el('small','',room?'In voice':'Online'));w.append(sw,nb);p.append(w);
  p.append(ib(IC.gear,'User settings',settings));if(isStaff())p.append(ib(IC.shield,'Staff panel',staffPanel));side.append(p)}
-async function members(){const p=$('#mem');if(!p)return;p.replaceChildren();if(cur==='home')return;const l=await api('members/'+cur).catch(()=>[]),seen=new Set();
- [['Staff',u=>['admin','staff'].includes(u.role)],['Online',u=>u.online],['Offline',()=>true]].forEach(([n,f])=>{const us=l.filter(u=>!seen.has(u.id)&&f(u));us.forEach(u=>seen.add(u.id));if(!us.length)return;p.append(el('div','mh',n+' — '+us.length));
-  us.forEach(u=>{const r=el('div','mr'+(u.online?'':' off')),w=el('div','st'+(u.online?' on':'')),t=THEMES[u.theme]||THEMES.midnight,nm=el('span','nm',u.username);nm.style.color=u.online?t[0]:'';w.append(av(u.id,u.username,u.theme));r.append(w,nm);(u.badges||[]).slice(0,1).forEach(k=>BADGES[k]&&r.append(badge(k)));r.onclick=()=>profile(u.id);p.append(r)})})}
+let memTok=0;
+async function members(){const p=$('#mem');if(!p)return;const sid=cur,tok=++memTok;if(sid==='home'){p.replaceChildren();return}
+ const l=await api('members/'+sid).catch(()=>null);if(!l||tok!==memTok)return;const seen=new Set(),f=document.createDocumentFragment();
+ [['Staff',u=>['admin','staff'].includes(u.role)],['Online',u=>u.online],['Offline',()=>true]].forEach(([n,fn])=>{const us=l.filter(u=>!seen.has(u.id)&&fn(u));us.forEach(u=>seen.add(u.id));if(!us.length)return;f.append(el('div','mh',n+' — '+us.length));
+  us.forEach(u=>{const r=el('div','mr'+(u.online?'':' off')),w=el('div','st'+(u.online?' on':'')),t=THEMES[u.theme]||THEMES.midnight,nm=el('span','nm',u.username);nm.style.color=u.online?t[0]:'';w.append(av(u.id,u.username,u.theme));r.append(w,nm);(u.badges||[]).slice(0,1).forEach(k=>BADGES[k]&&r.append(badge(k)));r.onclick=()=>profile(u.id);f.append(r)})});
+ p.replaceChildren(f)}
 async function profile(id){let u;try{u=await api('user/'+id)}catch(e){return fail(e)}
  const t=THEMES[u.theme]||THEMES.midnight,pop=$('#pop'),c=el('div','pc'),p=el('div','pi'),bn=el('div','bn'),pa=el('div','pa st on'),bx=el('div','pb'),nm=el('div','pnm'),row=el('div','prow'),bio=el('div','mt'),close=()=>{pop.style.display='none'};
  c.style.setProperty('--a',t[0]);c.style.setProperty('--b',t[1]);
@@ -158,7 +161,7 @@ function vleave(){ws.send(JSON.stringify({type:'vleave'}));vcleanup();draw()}
 function onSig(d){chain=chain.then(async()=>{if(!stream)return;const pc=peer(d.from),x=d.data;
  if(x.sdp){await pc.setRemoteDescription(x.sdp);if(x.sdp.type==='offer'){await pc.setLocalDescription(await pc.createAnswer());sig(d.from,{sdp:pc.localDescription})}}else if(x.ice)await pc.addIceCandidate(x.ice)}).catch(()=>{})}
 function connect(){ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
- ws.onmessage=async e=>{const d=JSON.parse(e.data);
+ ws.onmessage=async e=>{const d=JSON.parse(e.data);if(d.type==='presence'){clearTimeout(window.pt);window.pt=setTimeout(members,400)}
   if(d.type==='msg'&&d.m.channel===ch)add(d.m,true);
   if(d.type==='del'){const n=document.querySelector(`.m[data-id="${d.id}"]`);n&&n.remove()}
   if(d.type==='vpeers'&&room)for(const p of d.peers){names[p.id]=p.name;const pc=peer(p.id);await pc.setLocalDescription(await pc.createOffer());sig(p.id,{sdp:pc.localDescription});draw()}
