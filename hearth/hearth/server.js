@@ -13,7 +13,7 @@ const app=express();app.set('trust proxy',1);
 app.use(['/api/avatar','/api/banner'],express.json({limit:'700kb'}));
 app.use(helmet({contentSecurityPolicy:{directives:{...helmet.contentSecurityPolicy.getDefaultDirectives(),'img-src':["'self'",'data:','https://cdn.jsdelivr.net']}}}),express.json({limit:'10kb'}),express.static('public'));
 app.use('/api',rl({windowMs:6e4,max:120}));const authLimit=rl({windowMs:15*6e4,max:20});
-const pub=u=>({id:u.id,username:u.username,theme:u.theme,badges:u.badges,role:u.role});
+const pub=u=>({id:u.id,username:u.username,theme:u.theme,badges:u.badges,role:u.role,nfont:u.nfont,neffect:u.neffect,ncolor:u.ncolor,ncolor2:u.ncolor2,status:u.status||'online',cstatus:u.cstatus||''});
 const sign=(res,id)=>res.cookie('t',jwt.sign({id},SECRET,{expiresIn:'7d'}),{httpOnly:true,sameSite:'strict',secure:process.env.NODE_ENV==='production',maxAge:6048e5});
 const userFrom=async t=>{try{const{id}=jwt.verify(t,SECRET);return(await q('select * from users where id=$1 and not banned',[id]))[0]}catch{}};
 const need=async(req,res,next)=>{const u=await userFrom(cookie.parse(req.headers.cookie||'').t);if(!u)return res.status(401).json({error:'Not signed in'});req.u=u;next()};
@@ -34,9 +34,9 @@ app.post('/api/login',authLimit,async(req,res)=>{const{username:n,password:p}=re
 app.post('/api/logout',(req,res)=>{res.clearCookie('t');res.json({})});
 app.get('/api/me',need,(req,res)=>res.json(pub(req.u)));
 app.put('/api/profile',need,async(req,res)=>{if(!THEMES.includes(req.body.theme))return err(res,'Bad theme');await q('update users set theme=$1 where id=$2',[req.body.theme,req.u.id]);res.json({})});
-const MSG='select m.id,m.channel,m.body,m.ts,u.id uid,u.username,u.theme,u.badges,u.role from messages m join users u on u.id=m.user_id';
+const MSG='select m.id,m.channel,m.body,m.ts,m.edited,m.pinned,m.reply_to,m.mentions,m.ev,u.id uid,u.username,u.theme,u.badges,u.role,u.nfont,u.neffect,u.ncolor,u.ncolor2 from messages m join users u on u.id=m.user_id';
 app.get('/api/messages',need,async(req,res)=>{if(!await X.can(req.u.id,String(req.query.channel)))return err(res,'No access',403);
- res.json((await q(MSG+' where m.channel=$1 order by m.id desc limit 50',[req.query.channel])).reverse())});
+ res.json(await F.enrich((await q(MSG+' where m.channel=$1 order by m.id desc limit 50',[String(req.query.channel)])).reverse()))});
 app.get('/api/staff/users',need,staff,async(req,res)=>res.json(await q('select id,username,role,badges,banned from users order by id desc limit 200')));
 app.post('/api/staff/ban',need,staff,async(req,res)=>{await q("update users set banned=$1 where id=$2 and role='user'",[!!req.body.banned,+req.body.id]);res.json({})});
 app.post('/api/staff/badge',need,staff,async(req,res)=>{const{id,badge,on}=req.body;if(!BADGES.includes(badge))return err(res,'Bad badge');
@@ -45,24 +45,30 @@ app.post('/api/staff/role',need,async(req,res)=>{if(req.u.role!=='admin')return 
  if(!['user','staff'].includes(req.body.role))return err(res,'Bad role');await q("update users set role=$1 where id=$2 and role<>'admin'",[req.body.role,+req.body.id]);res.json({})});
 app.delete('/api/staff/msg/:id',need,staff,async(req,res)=>{await q('delete from messages where id=$1',[+req.params.id]);bc({type:'del',id:+req.params.id});res.json({})});
 const X=require('./extra')({app,q,need,err,bad,wss:()=>wss});
+const F=require('./features')({app,q,need,err,X,MSG});
 app.use((e,req,res,next)=>{console.error(e);res.status(500).json({error:'Server error'})});
 const server=http.createServer(app);
 const wss=new WebSocketServer({server,path:'/ws',maxPayload:16384,verifyClient:({origin,req})=>!origin||new URL(origin).host===req.headers.host});
 const bc=o=>wss.clients.forEach(c=>c.readyState===1&&c.send(JSON.stringify(o)));
 wss.on('connection',async(ws,req)=>{const u=await userFrom(cookie.parse(req.headers.cookie||'').t);if(!u)return ws.close();
- ws.uid=u.id;ws.name=u.username;bc({type:'presence'});let n=0;const t=setInterval(()=>n=0,1e4);ws.on('close',()=>{clearInterval(t);X.leave(ws);setTimeout(()=>bc({type:'presence'}),300)});
+ ws.uid=u.id;ws.name=u.username;bc({type:'presence'});X.snap(ws);let n=0;const t=setInterval(()=>n=0,1e4);ws.on('close',()=>{clearInterval(t);X.leave(ws);setTimeout(()=>bc({type:'presence'}),300)});
  ws.on('message',async raw=>{try{if(++n>40)return;const d=JSON.parse(raw),send=o=>ws.send(JSON.stringify(o));
   if(!(await q('select 1 from users where id=$1 and not banned',[u.id]))[0])return ws.close();
   if(d.type==='vleave')return X.leave(ws);
+  if(d.type==='vstate'){ws.muted=!!d.muted;ws.deaf=!!d.deaf;if(ws.room)X.vbc(ws.room);return}
   if(d.type==='vjoin'){if(!await X.can(u.id,String(d.ch)))return;X.leave(ws);const r=X.rooms[d.ch]||(X.rooms[d.ch]=new Set());
-   send({type:'vpeers',peers:[...r].map(c=>({id:c.uid,name:c.name}))});r.forEach(c=>c.send(JSON.stringify({type:'vin',id:u.id,name:u.username})));r.add(ws);ws.room=d.ch;return}
+   send({type:'vpeers',peers:[...r].map(c=>({id:c.uid,name:c.name}))});r.forEach(c=>c.send(JSON.stringify({type:'vin',id:u.id,name:u.username})));r.add(ws);ws.room=d.ch;ws.muted=!!d.muted;ws.deaf=!!d.deaf;
+   if(r.size===1||!X.vstart[d.ch])X.vstart[d.ch]=Date.now();X.vbc(d.ch);return}
   if(d.type==='sig'){const r=X.rooms[ws.room];r&&r.forEach(c=>c.uid===+d.to&&c.send(JSON.stringify({type:'sig',from:u.id,data:d.data})));return}
+  if(d.type==='typing'){const tc=String(d.channel);if(await X.can(u.id,tc))X.to((await X.ppl(tc)).filter(i=>i!==u.id),{type:'typing',channel:tc,id:u.id,name:u.username});return}
   const b=String(d.body||'').trim().slice(0,1000);if(!b||!await X.can(u.id,String(d.channel)))return;
-  const[m]=await q('insert into messages(channel,user_id,body) values($1,$2,$3) returning id',[d.channel,u.id,b]);
-  X.to(await X.ppl(d.channel),{type:'msg',m:(await q(MSG+' where m.id=$1',[m.id]))[0]})}catch{}})});
+  const ch=String(d.channel),pm=await F.parse(b,ch,u);let rt=null;
+  if(d.reply){const[r]=await q('select id,user_id from messages where id=$1 and channel=$2',[+d.reply||0,ch]);if(r){rt=r.id;if(r.user_id!==u.id&&!pm.ids.includes(r.user_id))pm.ids.push(r.user_id)}}
+  const[m]=await q('insert into messages(channel,user_id,body,reply_to,mentions,ev) values($1,$2,$3,$4,$5,$6) returning id',[ch,u.id,b,rt,pm.ids,pm.ev]);
+  X.to(await X.ppl(ch),{type:'msg',m:await F.one(m.id)})}catch{}})});
 (async()=>{await q(`create table if not exists users(id serial primary key,username text not null,password text not null,role text default 'user',badges text[] default '{}',theme text default 'midnight',banned boolean default false);
 create unique index if not exists u_name on users(lower(username));
-alter table users add column if not exists avatar bytea;alter table users add column if not exists banner bytea;alter table users add column if not exists bio text default '';alter table users add column if not exists created timestamptz default now();
+alter table users add column if not exists avatar bytea;alter table users add column if not exists banner bytea;alter table users add column if not exists bio text default '';alter table users add column if not exists created timestamptz default now();alter table users add column if not exists status text default 'online';alter table users add column if not exists cstatus text default '';
 create table if not exists servers(id serial primary key,name text,owner_id int,invite text unique);
 create table if not exists members(server_id int,user_id int references users(id) on delete cascade,primary key(server_id,user_id));
 create table if not exists channels(id serial primary key,server_id int references servers(id) on delete cascade,name text,kind text default 'text');
@@ -70,5 +76,9 @@ create table if not exists friends(a int,b int,status text,by int,primary key(a,
 insert into servers(name,owner_id,invite) select 'Hearth Lounge',0,'lounge' where not exists(select 1 from servers);
 insert into channels(server_id,name,kind) select s.id,n.name,n.kind from servers s,(values('general','text'),('media','text'),('self-promo','text'),('Lounge','voice')) n(name,kind) where s.invite='lounge' and not exists(select 1 from channels c where c.server_id=s.id);
 insert into members select s.id,u.id from servers s,users u where s.invite='lounge' on conflict do nothing;
-create table if not exists messages(id serial primary key,channel text,user_id int references users(id) on delete cascade,body text,ts timestamptz default now());`);
+create table if not exists messages(id serial primary key,channel text,user_id int references users(id) on delete cascade,body text,ts timestamptz default now());
+alter table users add column if not exists nfont text default 'sans';alter table users add column if not exists neffect text default 'solid';alter table users add column if not exists ncolor text;alter table users add column if not exists ncolor2 text;
+alter table messages add column if not exists reply_to int;alter table messages add column if not exists mentions int[] default '{}';alter table messages add column if not exists ev boolean default false;alter table messages add column if not exists edited timestamptz;alter table messages add column if not exists pinned boolean default false;
+create index if not exists m_chan on messages(channel,id);
+create table if not exists reactions(msg_id int references messages(id) on delete cascade,user_id int references users(id) on delete cascade,emoji text,ts timestamptz default now(),primary key(msg_id,user_id,emoji));`);
  server.listen(process.env.PORT||3000,()=>console.log('Hearth running'))})();
