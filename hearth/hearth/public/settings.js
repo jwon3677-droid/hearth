@@ -29,7 +29,7 @@ function userSettings(tab='acct'){const old=$('.ep');old&&old.remove();
    const id=el('div','card2');id.append(sec('Your user ID'),el('small','mu','Handy if you ever need to report something to staff.'),btn('Copy User ID','g',()=>{copyTxt(String(me.id));toast('User ID copied',1)}));pane.append(id);
    const dz=el('div','card2 dz'),dp=el('input');dp.type='password';dp.placeholder='Password';dz.append(sec('Delete account'),el('small','mu','Permanently deletes your account, messages and any servers you own. This can\'t be undone.'));
    if(me.role==='admin')dz.append(el('small','mu','The admin account can\'t be deleted here.'));
-   else{const fd=field('Confirm with your password',dp);dz.append(fd,btn('Delete My Account','dng',async()=>{if(!dp.value)return fd.err('Enter your password');if(!confirm('Really delete your account? This is permanent.'))return;try{await api('account','DELETE',{password:dp.value});kill();logout()}catch(e){fd.err(e.message)}}))}
+   else{const fd=field('Confirm with your password',dp);dz.append(fd,btn('Delete My Account','dng',async()=>{if(!dp.value)return fd.err('Enter your password');if(!await askConfirm('Delete your account?','This is permanent and can\'t be undone.',{ok:'Delete Account',danger:1}))return;try{await api('account','DELETE',{password:dp.value});kill();logout()}catch(e){fd.err(e.message)}}))}
    pane.append(dz)};
  const P={
  acct:accountPane,
@@ -79,7 +79,7 @@ function userSettings(tab='acct'){const old=$('.ep');old&&old.remove();
    pane.append(card(pref('streamer','Enable streamer mode','Hide sensitive info while you\'re streaming or recording.'),sec('When enabled'),pref('sHideInv','Hide invite links & codes',''),pref('sHideInfo','Hide personal information','Hides your user ID and account details.'),pref('sNoSound','Disable sounds',''),pref('sNoNotif','Disable desktop notifications','')))},
  adv:()=>{pane.append(el('h2','','Advanced'));
    pane.append(card(sec('Advanced'),pref('devmode','Developer mode','Shows IDs in context menus.'),pref('hw','Hardware acceleration',''),pref('startMin','Start minimized',''),sel('launchCh','On launch open','',[['last','Last channel'],['home','Home']]),pref('overlay','In-game overlay',''),pref('debug','Show debug logging','')),
-    card(sec('Data'),btn('Reset all preferences','dng',()=>{if(confirm('Reset every setting in this browser to its default?')){try{localStorage.removeItem('hearth.prefs')}catch{}location.reload()}})))}};
+    card(sec('Data'),btn('Reset all preferences','dng',async()=>{if(await askConfirm('Reset all preferences?','Every setting in this browser goes back to its default.',{ok:'Reset',danger:1})){try{localStorage.removeItem('hearth.prefs')}catch{}location.reload()}})))}};
  function draw1(){pane.replaceChildren();(P[tab]||P.acct)()}
  nav();draw1();R.append(pane);ov.append(L,R,x);document.body.append(ov);addEventListener('keydown',key)}
 
