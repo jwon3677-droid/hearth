@@ -36,7 +36,7 @@ app.post('/api/login',authLimit,async(req,res)=>{const{username:n,password:p}=re
 app.post('/api/logout',(req,res)=>{res.clearCookie('t');res.json({})});
 app.get('/api/me',need,(req,res)=>res.json({...pub(req.u),owner:!!req.u.owner}));
 app.put('/api/profile',need,async(req,res)=>{if(!THEMES.includes(req.body.theme))return err(res,'Bad theme');await q('update users set theme=$1 where id=$2',[req.body.theme,req.u.id]);res.json({})});
-const MSG='select m.id,m.channel,m.body,m.ts,m.edited,m.pinned,m.reply_to,m.mentions,m.ev,m.att_id,m.att_name,m.att_type,m.att_size,u.id uid,u.username,u.theme,u.badges,u.role,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+' from messages m join users u on u.id=m.user_id';
+const MSG='select m.id,m.channel,m.body,m.ts,m.edited,m.pinned,m.reply_to,m.mentions,m.mnames,m.ev,m.att_id,m.att_name,m.att_type,m.att_size,u.id uid,u.username,u.theme,u.badges,u.role,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+' from messages m join users u on u.id=m.user_id';
 app.get('/api/messages',need,async(req,res)=>{if(!await X.can(req.u.id,String(req.query.channel)))return err(res,'No access',403);
  res.json(await F.enrich((await q(MSG+' where m.channel=$1 order by m.id desc limit 50',[String(req.query.channel)])).reverse()))});
 app.post('/api/staff/ban',need,staff,async(req,res)=>{await q("update users set banned=$1 where id=$2 and role='user'",[!!req.body.banned,+req.body.id]);res.json({})});
@@ -61,15 +61,15 @@ wss.on('connection',async(ws,req)=>{const u=await userFrom(cookie.parse(req.head
   if(!(await q('select 1 from users where id=$1 and not banned',[u.id]))[0])return ws.close();
   if(d.type==='vleave')return X.leave(ws);
   if(d.type==='vstate'){ws.muted=!!d.muted;ws.deaf=!!d.deaf;if(ws.room)X.vbc(ws.room);return}
-  if(d.type==='vjoin'){if(!await X.can(u.id,String(d.ch)))return;X.leave(ws);const r=X.rooms[d.ch]||(X.rooms[d.ch]=new Set());
+  if(d.type==='vjoin'){if(!await X.can(u.id,String(d.ch),true))return;X.leave(ws);const r=X.rooms[d.ch]||(X.rooms[d.ch]=new Set());
    send({type:'vpeers',peers:[...r].map(c=>({id:c.uid,name:c.name}))});r.forEach(c=>c.send(JSON.stringify({type:'vin',id:u.id,name:u.username})));r.add(ws);ws.room=d.ch;ws.muted=!!d.muted;ws.deaf=!!d.deaf;
    if(r.size===1||!X.vstart[d.ch])X.vstart[d.ch]=Date.now();X.vbc(d.ch);return}
   if(d.type==='sig'){const r=X.rooms[ws.room];r&&r.forEach(c=>c.uid===+d.to&&c.send(JSON.stringify({type:'sig',from:u.id,data:d.data})));return}
   if(d.type==='typing'){const tc=String(d.channel);if(await X.can(u.id,tc))X.to((await X.ppl(tc)).filter(i=>i!==u.id),{type:'typing',channel:tc,id:u.id,name:u.username});return}
   const b=String(d.body||'').trim().slice(0,1000);if(!b||!await X.can(u.id,String(d.channel)))return;
-  const ch=String(d.channel),pm=await F.parse(b,ch,u);let rt=null;
+  const ch=String(d.channel);await X.dmSend(u.id,ch);const pm=await F.parse(b,ch,u);let rt=null;
   if(d.reply){const[r]=await q('select id,user_id from messages where id=$1 and channel=$2',[+d.reply||0,ch]);if(r){rt=r.id;if(r.user_id!==u.id&&!pm.ids.includes(r.user_id))pm.ids.push(r.user_id)}}
-  const[m]=await q('insert into messages(channel,user_id,body,reply_to,mentions,ev) values($1,$2,$3,$4,$5,$6) returning id',[ch,u.id,b,rt,pm.ids,pm.ev]);
+  const[m]=await q('insert into messages(channel,user_id,body,reply_to,mentions,ev,mnames) values($1,$2,$3,$4,$5,$6,$7) returning id',[ch,u.id,b,rt,pm.ids,pm.ev,JSON.stringify(pm.map||{})]);
   X.to(await X.ppl(ch),{type:'msg',m:await F.one(m.id)})}catch{}})});
 (async()=>{await q(`create table if not exists users(id serial primary key,username text not null,password text not null,role text default 'user',badges text[] default '{}',theme text default 'midnight',banned boolean default false);
 create unique index if not exists u_name on users(lower(username));
@@ -78,13 +78,13 @@ create table if not exists servers(id serial primary key,name text,owner_id int,
 create table if not exists members(server_id int,user_id int references users(id) on delete cascade,primary key(server_id,user_id));
 create table if not exists channels(id serial primary key,server_id int references servers(id) on delete cascade,name text,kind text default 'text');
 update servers set invite='hearth' where invite='lounge' and not exists(select 1 from servers where invite='hearth');
-create table if not exists friends(a int,b int,status text,by int,primary key(a,b));
+create table if not exists friends(a int,b int,status text,by int,primary key(a,b));create table if not exists dm_state(a int,b int,by int,status text,primary key(a,b));
 insert into servers(name,owner_id,invite) select 'Hearth Lounge',0,'hearth' where not exists(select 1 from servers);
 insert into channels(server_id,name,kind) select s.id,n.name,n.kind from servers s,(values('general','text'),('media','text'),('self-promo','text'),('Lounge','voice')) n(name,kind) where s.invite='hearth' and not exists(select 1 from channels c where c.server_id=s.id);
 insert into members select s.id,u.id from servers s,users u where s.invite='hearth' on conflict do nothing;
 create table if not exists messages(id serial primary key,channel text,user_id int references users(id) on delete cascade,body text,ts timestamptz default now());
 alter table users add column if not exists nfont text default 'sans';alter table users add column if not exists neffect text default 'solid';alter table users add column if not exists ncolor text;alter table users add column if not exists ncolor2 text;
-alter table messages add column if not exists reply_to int;alter table messages add column if not exists mentions int[] default '{}';alter table messages add column if not exists ev boolean default false;alter table messages add column if not exists edited timestamptz;alter table messages add column if not exists pinned boolean default false;
+alter table messages add column if not exists reply_to int;alter table messages add column if not exists mnames jsonb;alter table messages add column if not exists mentions int[] default '{}';alter table messages add column if not exists ev boolean default false;alter table messages add column if not exists edited timestamptz;alter table messages add column if not exists pinned boolean default false;
 create index if not exists m_chan on messages(channel,id);
 create table if not exists reactions(msg_id int references messages(id) on delete cascade,user_id int references users(id) on delete cascade,emoji text,ts timestamptz default now(),primary key(msg_id,user_id,emoji));
 alter table users add column if not exists dname text;alter table users add column if not exists pronouns text;alter table users add column if not exists peffect text default 'none';alter table users add column if not exists pc1 text;alter table users add column if not exists pc2 text;alter table users add column if not exists tag_server int;
