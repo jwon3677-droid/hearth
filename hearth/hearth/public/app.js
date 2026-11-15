@@ -4,19 +4,42 @@ const BADGES={staff:'🛡️ Staff',og:'👑 OG',early:'🌱 Early',verified:'�
 const EMOJI=['😀','😂','🥹','😍','😎','🤔','😭','😡','👍','👎','🙏','🔥','💯','🎉','❤️','💀','👀','✨','🚀','🎮','🍕','🐱','🐶','🌈'];
 let me,servers=[],friends=[],cur='home',ch=null,chName='',ws,room=null,stream=null,names={},pcs={},chain=Promise.resolve(),AV=0;
 const root=$('#root'),isStaff=()=>['staff','admin'].includes(me.role),dmKey=id=>'dm'+Math.min(me.id,id)+'_'+Math.max(me.id,id);
-const api=(p,m='GET',b)=>fetch('/api/'+p,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b)}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Error');return j});
+const api=(p,m='GET',b)=>fetch('/api/'+p,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b),signal:AbortSignal.timeout(25000)}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Error');return j}).catch(e=>{throw e.name==='TimeoutError'?Error('Server is waking up or busy. Try again in a few seconds.'):e});
 const fail=e=>alert(e.message),theme=()=>document.documentElement.style.setProperty('--ac',(THEMES[me.theme]||THEMES.midnight)[0]);
 function av(id,name,th){const t=THEMES[th]||THEMES.midnight,a=el('div','av',name[0].toUpperCase()),i=new Image();a.style.background=`linear-gradient(135deg,${t[0]},${t[1]})`;i.className='ai';i.onload=()=>a.replaceChildren(i);i.src='/api/avatar/'+id+'?v='+AV;return a}
-function authView(){root.replaceChildren();let signup=false;const w=el('div'),f=el('div');w.id='authwrap';f.id='auth';
- const paint=()=>{f.replaceChildren();
-  f.append(el('div','alogo','🔥 Hearth'),el('h1','',signup?'Create your account':'Welcome back'),el('p','mu',signup?'Join the fire. It only takes a minute.':'Good to see you chatting again.'));
-  const u=el('input'),p=el('input'),e=el('div','err'),pw=el('div','pw'),eye=el('button','eye','👁'),b=el('button','go',signup?'Create account':'Log in');
-  u.autocomplete='username';p.type='password';p.autocomplete=signup?'new-password':'current-password';eye.type='button';eye.onclick=()=>p.type=p.type==='password'?'text':'password';pw.append(p,eye);
-  const run=async()=>{b.disabled=true;try{me=await api(signup?'signup':'login','POST',{username:u.value,password:p.value});start()}catch(x){e.textContent=x.message;b.disabled=false}};
+const AUTHCSS=`
+#aw{--ac:#ff6b35;position:relative;min-height:100vh;display:grid;place-items:center;padding:20px;background:#0a0a0f;overflow:hidden}
+#aw .gr{position:absolute;inset:0;background:repeating-linear-gradient(0deg,#ffffff09 0 1px,transparent 1px 56px),repeating-linear-gradient(90deg,#ffffff09 0 1px,transparent 1px 56px);-webkit-mask-image:radial-gradient(circle,#000 25%,transparent 75%);mask-image:radial-gradient(circle,#000 25%,transparent 75%)}
+#aw .orbs{position:absolute;inset:0;overflow:hidden}
+#aw .orbs b{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:fl 14s ease-in-out infinite alternate}
+#aw .o1{width:420px;height:420px;background:#ff6b35;top:-120px;left:-80px}#aw .o2{width:380px;height:380px;background:#c026d3;bottom:-140px;right:-60px;animation-delay:-5s}#aw .o3{width:300px;height:300px;background:#3b82f6;top:40%;left:55%;opacity:.28;animation-delay:-9s}
+@keyframes fl{to{transform:translate(60px,-40px) scale(1.15)}}
+#aw .orbs i{position:absolute;bottom:-10px;border-radius:50%;background:#ffb27a;box-shadow:0 0 8px #ff8a4c;animation:up linear infinite}
+@keyframes up{from{transform:translateY(0);opacity:0}10%{opacity:1}to{transform:translateY(-105vh) translateX(30px);opacity:0}}
+#aw .card{position:relative;width:min(400px,100%);padding:34px 30px;border-radius:22px;background:#14141bcc;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border:1px solid #ffffff18;box-shadow:0 30px 80px #000a,0 0 60px #ff6b351f;display:grid;gap:8px;text-align:center;animation:in .6s cubic-bezier(.2,.8,.2,1)}
+@keyframes in{from{opacity:0;transform:translateY(20px) scale(.97)}}
+#aw .flame{font-size:44px;animation:pulse 2s ease-in-out infinite;filter:drop-shadow(0 0 14px #ff6b35)}@keyframes pulse{50%{transform:scale(1.12) rotate(-4deg)}}
+#aw .brand{font-size:14px;font-weight:800;letter-spacing:.35em;text-transform:uppercase;color:#ffb27a}
+#aw h1{margin:8px 0 0;font-size:30px;background:linear-gradient(90deg,#fff,#ffb27a);-webkit-background-clip:text;background-clip:text;color:transparent}
+#aw .mu{color:#9a9ca8;margin:0 0 10px}#aw label{text-align:left;font-size:11px;font-weight:700;letter-spacing:.08em;color:#b9bac4;margin-top:6px}
+#aw input{background:#0c0c11;border:1px solid #2c2c36;border-radius:10px;padding:13px;transition:.2s;color:#fff}#aw input:focus{outline:0;border-color:#ff6b35;box-shadow:0 0 0 3px #ff6b3533}
+#aw .pw{position:relative}#aw .eye{position:absolute;right:4px;top:4px;background:none;padding:9px}
+#aw .go{margin-top:12px;padding:14px;font-weight:700;border-radius:10px;background:linear-gradient(90deg,#ff6b35,#ff3d81);box-shadow:0 10px 30px #ff6b3555;transition:.2s}
+#aw .go:hover{transform:translateY(-2px);box-shadow:0 14px 36px #ff6b3588}#aw .go:disabled{opacity:.6;transform:none}
+#aw .err{color:#ff7a8a;font-size:13px}#aw .sw{margin-top:6px;color:#9a9ca8}#aw .sw a{color:#ff8a4c;font-weight:700;text-decoration:none}
+#aw .chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px}#aw .chips span{font-size:12px;padding:4px 10px;border-radius:99px;background:#ffffff0d;border:1px solid #ffffff14;color:#c9c9d1}`;
+function authView(){root.replaceChildren();if(!$('#authcss')){const s=el('style');s.id='authcss';s.textContent=AUTHCSS;document.head.append(s)}
+ let signup=false;const w=el('div'),f=el('div','card'),bg=el('div','orbs');w.id='aw';bg.append(el('b','o1'),el('b','o2'),el('b','o3'));
+ for(let k=0;k<18;k++){const e=el('i'),z=2+Math.random()*3;e.style.cssText=`left:${Math.random()*100}%;width:${z}px;height:${z}px;animation-delay:${-Math.random()*12}s;animation-duration:${8+Math.random()*8}s`;bg.append(e)}
+ const paint=()=>{f.replaceChildren();f.append(el('div','flame','🔥'),el('div','brand','Hearth'),el('h1','',signup?'Create your account':'Welcome back'),el('p','mu',signup?'Join the fire. It only takes a minute.':'Good to see you chatting again.'));
+  const u=el('input'),p=el('input'),e=el('div','err'),pw=el('div','pw'),eye=el('button','eye','👁'),b=el('button','go',signup?'Create account':'Log in'),c=el('div','chips');
+  u.autocomplete='username';u.placeholder='Your username';p.placeholder='••••••••';p.type='password';p.autocomplete=signup?'new-password':'current-password';eye.type='button';eye.onclick=()=>p.type=p.type==='password'?'text':'password';pw.append(p,eye);
+  const run=async()=>{b.disabled=true;b.textContent=signup?'Creating…':'Signing in…';e.textContent='';try{me=await api(signup?'signup':'login','POST',{username:u.value,password:p.value});start()}catch(x){e.textContent=x.message;b.disabled=false;b.textContent=signup?'Create account':'Log in'}};
   b.onclick=run;u.onkeydown=p.onkeydown=ev=>ev.key==='Enter'&&run();
   const sw=el('a','',signup?'Log in':'Create an account'),t=el('div','sw');sw.href='#';sw.onclick=ev=>{ev.preventDefault();signup=!signup;paint()};t.append(signup?'Already have an account? ':'New here? ',sw);
-  f.append(el('label','','USERNAME'),u,el('label','','PASSWORD'),pw,e,b,t);if(signup)f.append(el('small','mu','3-20 letters, numbers, _ or . · password 8+ characters'))};
- paint();w.append(f);root.append(w)}
+  ['💬 Chat','🎙️ Voice','🎨 Themes','🛡️ Safe'].forEach(x=>c.append(el('span','',x)));
+  f.append(el('label','','USERNAME'),u,el('label','','PASSWORD'),pw,e,b,t,c);if(signup)f.append(el('small','mu','3-20 letters, numbers, _ or . · password 8+ characters'))};
+ paint();w.append(el('div','gr'),bg,f);root.append(w)}
 function render(m){const t=THEMES[m.theme]||THEMES.midnight,d=el('div','m'),b=el('div'),h=el('div'),n=el('span','nm',m.username);d.dataset.id=m.id;n.style.color=t[0];h.append(n);
  (m.badges||[]).forEach(k=>BADGES[k]&&h.append(el('span','bd',BADGES[k])));h.append(el('span','ts',new Date(m.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})));
  if(isStaff()){const x=el('button','x','delete');x.onclick=()=>api('staff/msg/'+m.id,'DELETE');h.append(x)}
