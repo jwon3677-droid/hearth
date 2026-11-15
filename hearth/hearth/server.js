@@ -35,7 +35,7 @@ app.post('/api/login',authLimit,async(req,res)=>{const{username:n,password:p}=re
 app.post('/api/logout',(req,res)=>{res.clearCookie('t');res.json({})});
 app.get('/api/me',need,(req,res)=>res.json(pub(req.u)));
 app.put('/api/profile',need,async(req,res)=>{if(!THEMES.includes(req.body.theme))return err(res,'Bad theme');await q('update users set theme=$1 where id=$2',[req.body.theme,req.u.id]);res.json({})});
-const MSG='select m.id,m.channel,m.body,m.ts,m.edited,m.pinned,m.reply_to,m.mentions,m.ev,u.id uid,u.username,u.theme,u.badges,u.role,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+' from messages m join users u on u.id=m.user_id';
+const MSG='select m.id,m.channel,m.body,m.ts,m.edited,m.pinned,m.reply_to,m.mentions,m.ev,m.att_id,m.att_name,m.att_type,m.att_size,u.id uid,u.username,u.theme,u.badges,u.role,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+' from messages m join users u on u.id=m.user_id';
 app.get('/api/messages',need,async(req,res)=>{if(!await X.can(req.u.id,String(req.query.channel)))return err(res,'No access',403);
  res.json(await F.enrich((await q(MSG+' where m.channel=$1 order by m.id desc limit 50',[String(req.query.channel)])).reverse()))});
 app.post('/api/staff/ban',need,staff,async(req,res)=>{await q("update users set banned=$1 where id=$2 and role='user'",[!!req.body.banned,+req.body.id]);res.json({})});
@@ -47,8 +47,10 @@ app.delete('/api/staff/msg/:id',need,staff,async(req,res)=>{await q('delete from
 const X=require('./extra')({app,q,need,err,bad,wss:()=>wss});
 const F=require('./features')({app,q,need,err,X,MSG});
 require('./profile')({app,q,need,err,bad,THEMES,wss:()=>wss});
+require('./files')({app,q,need,err,X,F});
 require('./manage')({app,q,need,err,bad,bcrypt,X,wss:()=>wss,BADGES});
 app.use((e,req,res,next)=>{console.error(e);res.status(500).json({error:'Server error'})});
+setInterval(()=>q("delete from attachments where ts<now()-interval '1 hour' and id not in (select att_id from messages where att_id is not null)").catch(()=>{}),36e5);
 const server=http.createServer(app);
 const wss=new WebSocketServer({server,path:'/ws',maxPayload:16384,verifyClient:({origin,req})=>!origin||new URL(origin).host===req.headers.host});
 const bc=o=>wss.clients.forEach(c=>c.readyState===1&&c.send(JSON.stringify(o)));
@@ -86,5 +88,5 @@ create index if not exists m_chan on messages(channel,id);
 create table if not exists reactions(msg_id int references messages(id) on delete cascade,user_id int references users(id) on delete cascade,emoji text,ts timestamptz default now(),primary key(msg_id,user_id,emoji));
 alter table users add column if not exists dname text;alter table users add column if not exists pronouns text;alter table users add column if not exists peffect text default 'none';alter table users add column if not exists pc1 text;alter table users add column if not exists pc2 text;alter table users add column if not exists tag_server int;
 alter table users add column if not exists allow_fr boolean default true;create table if not exists mod_servers(user_id int references users(id) on delete cascade,server_id int,primary key(user_id,server_id));
-alter table servers add column if not exists tag text;alter table servers add column if not exists tag_icon text;alter table servers add column if not exists tag_color text;alter table users add column if not exists adeco text;create table if not exists staff_log(id serial primary key,actor int,actor_name text,action text,target text,detail text,ts timestamptz default now());create index if not exists sl_ts on staff_log(id desc);alter table channels add column if not exists pos int default 2147483647;update servers set owner_id=(select id from users where role='admin' order by id limit 1) where invite='hearth' and (owner_id=0 or owner_id is null) and exists(select 1 from users where role='admin');alter table servers add column if not exists settings jsonb default '{}';`);
+alter table servers add column if not exists tag text;alter table servers add column if not exists tag_icon text;alter table servers add column if not exists tag_color text;alter table users add column if not exists adeco text;create table if not exists staff_log(id serial primary key,actor int,actor_name text,action text,target text,detail text,ts timestamptz default now());create index if not exists sl_ts on staff_log(id desc);alter table channels add column if not exists pos int default 2147483647;update servers set owner_id=(select id from users where role='admin' order by id limit 1) where invite='hearth' and (owner_id=0 or owner_id is null) and exists(select 1 from users where role='admin');alter table servers add column if not exists settings jsonb default '{}';alter table servers add column if not exists icon bytea;create table if not exists attachments(id serial primary key,data bytea,name text,type text,channel text,size int,ts timestamptz default now());alter table messages add column if not exists att_id int;alter table messages add column if not exists att_name text;alter table messages add column if not exists att_type text;alter table messages add column if not exists att_size int;`);
  server.listen(process.env.PORT||3000,()=>console.log('Hearth running'))})();

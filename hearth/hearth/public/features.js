@@ -180,7 +180,7 @@ function editMsg(d){const m=d._m;if(!m||m.uid!==me.id||d.classList.contains('edi
 function render(m,grp,isNew){
  const t=THEMES[m.theme]||THEMES.midnight,d=el('div','m'+(grp?' c':'')+(isNew?' new':'')+(hasPing(m)?' ping':'')),b=el('div','mb'),body=el('div','mt'),
   time=new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:PREFS.t24?false:undefined});
- d.dataset.id=m.id;d.dataset.uid=m.uid;d._m=m;body.append(md(m.body,m));if(isBig(m.body))body.classList.add('big');
+ d.dataset.id=m.id;d.dataset.uid=m.uid;d._m=m;if(m.body)body.append(md(m.body,m));{const an=attachNode(m);an&&body.append(an)}if(isBig(m.body))body.classList.add('big');
  if(m.edited){const e=el('span','ed','(edited)');e.title='Edited '+new Date(m.edited).toLocaleString();body.append(e)}
  if(m.rp){d.classList.add('hasrp');d.append(replyRef(m.rp))}
  if(grp){d.append(el('span','ht',time.replace(/ ?[AP]M/,'')));b.append(body)}

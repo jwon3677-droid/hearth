@@ -96,7 +96,7 @@ function serverSettings(sid,tab='ov'){const D=dialog('640px');D.box.classList.ad
     const code=el('input');code.value=s.invite;code.readOnly=true;code.onfocus=()=>code.select();const row=el('div','copyrow');row.append(code,btn('Copy','',()=>{copyTxt(s.invite);toast('Invite copied',1)}),btn('New code','g',()=>run(async()=>{await api('servers/'+s.id+'/invite','POST')},'Invite code reset — the old one no longer works')));
     const tg=el('div','trow');tg.append(tagChip(s.tag?{tag:s.tag,tag_icon:s.tag_icon,tag_color:s.tag_color}:null)||el('span','mu','No tag set'),btn(s.tag?'Edit Tag':'Create Tag','g',()=>tagDialog(s,draw1)));
     const sc=el('input');sc.type='color';sc.value=ST.color||'#5865f2';sc.onchange=()=>save({color:sc.value},'Saved');
-    pane.append(f,sv,field('Invite code',row),field('Server tag',tg),tx('desc','Server description',300,1),field('Accent color',sc),
+    pane.append(f,sv,iconRow(s,draw1),field('Invite code',row),field('Server tag',tg),tx('desc','Server description',300,1),field('Accent color',sc),
      card(el('h3','ush','System messages channel'),sl('sysch','Send system messages to','',[['','No system messages'],...s.channels.filter(c=>c.kind!=='voice').map(c=>[String(c.id),'#'+c.name])],''),tg2('sysjoin','Send a welcome message when someone joins','',true),tg2('sysboost','Send a message when someone boosts','',true),tg2('systips','Send helpful tips for server setup','',true)),
      card(el('h3','ush','Inactive'),sl('afk','Inactive timeout','Move idle voice users after this long.',[[60,'1 minute'],[300,'5 minutes'],[900,'15 minutes'],[1800,'30 minutes'],[3600,'1 hour']],300)),
      card(el('h3','ush','Preferred locale'),sl('lang','Server language','',[['en','English'],['es','Español'],['fr','Français'],['de','Deutsch'],['pt','Português'],['ja','日本語']],'en')),
@@ -318,7 +318,7 @@ const fmtT=ms=>{const s=Math.max(0,Math.floor(ms/1e3)),h=Math.floor(s/3600),m=Ma
 function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)return;const sc=side.querySelector('.sbody'),top=sc?sc.scrollTop:0;rail.replaceChildren();side.replaceChildren();
  const rb=(c,tt,on,fn,cls)=>{const b=el('div','rb'+(on?' on':'')+(cls?' '+cls:''));typeof c==='string'?b.textContent=c:b.append(c);b.title=tt;b.onclick=fn;rail.append(b);return b},home=new Image();home.src=MURI;
  railBadge(rb(home,'Home & DMs',cur==='home',goHome),friends.filter(f=>f.status==='ok').map(f=>dmKey(f.id)));rail.append(el('div','sep'));
- servers.forEach(s=>{const b=rb(s.invite==='hearth'?(()=>{const m=new Image();m.src='/server-icon.svg';m.style.cssText='width:100%;height:100%;border-radius:inherit;object-fit:cover';return m})():initials(s.name),s.name+(s.is_mod?' (moderating)':''),cur===s.id,()=>goServer(s.id));if(s.is_mod){b.classList.add('modrb');b.append(el('i','modmk','🛡'))}railBadge(b,s.channels.map(c=>'c'+c.id))});
+ servers.forEach(s=>{const b=rb(s.has_icon||s.invite==='hearth'?(()=>{const m=new Image();m.src=s.has_icon?'/api/servers/'+s.id+'/icon?v='+AV:'/server-icon.svg';m.style.cssText='width:100%;height:100%;border-radius:inherit;object-fit:cover';return m})():initials(s.name),s.name+(s.is_mod?' (moderating)':''),cur===s.id,()=>goServer(s.id));if(s.is_mod){b.classList.add('modrb');b.append(el('i','modmk','🛡'))}railBadge(b,s.channels.map(c=>'c'+c.id))});
  rb(ic(IC.plus,22),'Add a Server',false,addServerDialog,'add');
  $('#app').classList.toggle('nomem',cur==='home'||!showMem);
  const hdr=el('div','sh'),body=el('div','sbody');

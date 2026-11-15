@@ -75,7 +75,7 @@ body{font:15px/1.4 "gg sans","Segoe UI",Inter,system-ui,sans-serif}.mu{color:#94
 .dd{display:flex;align-items:center;gap:10px;margin:18px 16px 0;color:#949ba4;font-size:12px;font-weight:600}.dd::before,.dd::after{content:'';flex:1;height:1px;background:#3f4147}
 .del{position:absolute;right:16px;top:-12px;background:#2b2d31;border:1px solid #1e1f22;color:#f23f43;display:none}.m:hover .del{display:grid}
 .empty{display:grid;place-items:center;align-content:center;height:100%;text-align:center;gap:4px;color:#949ba4}.empty h2{margin:6px 0 0;color:#fff}
-#bar{padding:0 16px 24px;gap:0}#in{background:#383a40;border:0;border-radius:8px 0 0 8px;padding:12px 16px}#bar>.ib{background:#383a40;border-radius:0 8px 8px 0;width:48px}
+#bar{padding:0 16px 24px;gap:0}#in{background:#383a40;border:0;border-radius:0;padding:12px 16px}#bar>.ib{background:#383a40;border-radius:0 8px 8px 0;width:48px}
 #emo{position:absolute;right:16px;bottom:76px;width:352px;height:330px;background:#2b2d31;border:1px solid #1e1f22;border-radius:10px;display:none;flex-direction:column;padding:0;box-shadow:0 10px 40px #000a;overflow:hidden;animation:in2 .18s ease}
 .et{display:flex;background:#1e1f22;padding:6px 8px;gap:4px}.et span{padding:6px;border-radius:6px;cursor:pointer;opacity:.6}.et span.on,.et span:hover{background:#35373c;opacity:1}.et .em,.eg .em{width:24px;height:24px;margin:0}
 .eg{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:8px;overflow:auto}.eg span{display:grid;place-items:center;padding:5px;border-radius:6px;cursor:pointer;transition:transform .1s}.eg span:hover{background:#383a40;transform:scale(1.25)}
@@ -92,6 +92,7 @@ function start(){theme();if(!$('#appcss')){const s=el('style');s.id='appcss';s.t
  rail.id='rail';side.id='side';main.id='main';mem.id='mem';top.id='top';msgs.id='msgs';bar.id='bar';i.id='in';i.rows=1;i.maxLength=1000;emo.id='emo';
  pickerFill(emo,s=>{i.value+=s;i.focus()});eb.append(rich('😀'));eb.onclick=e=>{e.stopPropagation();emo.style.display=emo.style.display==='flex'?'none':'flex'};document.addEventListener('click',e=>{if(!emo.contains(e.target))emo.style.display='none'});
  const send=()=>{if(ch&&i.value.trim()&&ws.readyState===1){ws.send(JSON.stringify({channel:ch,body:i.value,reply:replyTo?replyTo.id:undefined}));i.value='';setReply(null)}};
- bar.append(i,eb,emo);composer(i,bar,send);main.append(top,msgs,bar);a.append(rail,side,main,mem);root.append(a);connect();
+ const ab=el('button','ib'),fi=el('input');fi.type='file';fi.hidden=true;ab.type='button';ab.title='Upload a file (max 10MB)';ab.textContent='📎';ab.onclick=e=>{e.stopPropagation();fi.click()};fi.onchange=()=>{const f=fi.files[0];fi.value='';f&&uploadFile(f,i)};i.addEventListener('paste',e=>{const f=[...(e.clipboardData?e.clipboardData.files:[])][0];if(f){e.preventDefault();uploadFile(f,i)}});main.addEventListener('dragover',e=>e.preventDefault());main.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(f){e.preventDefault();uploadFile(f,i)}});
+ bar.append(ab,fi,i,eb,emo);composer(i,bar,send);main.append(top,msgs,bar);a.append(rail,side,main,mem);root.append(a);connect();
  refresh().then(()=>{const s=servers[0];if(s){cur=s.id;const f=s.channels.find(c=>c.kind==='text');open(f?'c'+f.id:null,f?'# '+f.name:'');members()}else open(null,'')}).catch(fail);setInterval(()=>me&&refresh().catch(()=>{}),20000)}
 addEventListener('DOMContentLoaded',()=>api('me').then(u=>{me=u;start()}).catch(authView));

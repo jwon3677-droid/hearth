@@ -4,6 +4,7 @@
 3. On render.com: New > Web Service > your repo. Build: `npm install`, Start: `npm start`.
 4. Env vars: DATABASE_URL, JWT_SECRET (32+ random chars), NODE_ENV=production.
 5. The FIRST account to sign up becomes admin. Sign up yourself right away.
+**Uploads**: server icons (owner: Server Settings > Overview) and file attachments (📎, drag-drop or paste in chat) are capped at 10MB and stored in Postgres. Mind your DB size limit.
 Local: DATABASE_URL=... JWT_SECRET=... npm start
 Voice uses WebRTC (STUN only): works for small groups on most networks; strict NATs may need a free TURN service added in app.js.
 Fresh DB recommended; existing users are auto-joined to the "Hearth Lounge" server on start.
