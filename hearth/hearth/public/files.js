@@ -14,7 +14,19 @@ function attachNode(m){if(!m.att_id)return null;const u='/api/att/'+m.att_id,w=e
  if(isImg){const a=el('a');a.href=u;a.target='_blank';a.rel='noopener';const im=new Image();im.src=u;im.loading='lazy';im.alt=m.att_name;im.style.cssText='max-width:min(400px,100%);max-height:300px;border-radius:8px;display:block;margin-top:4px';a.append(im);w.append(a)}
  else{const a=el('a','',m.att_name+' · '+fmtSz(m.att_size||0));a.href=u;a.download=m.att_name;a.style.cssText='display:inline-block;margin-top:4px;padding:8px 12px;border-radius:8px;background:#2b2d31;color:#00a8fc;text-decoration:none';w.append(a)}return w}
 // In-app replacements for the browser's prompt()/confirm() popups
-function askDialog(title,sub,build,okText,danger){return new Promise(res=>{const D=dialog('420px');let done=false;const fin=v=>{if(done)return;done=true;res(v);D.close()},close0=D.close;D.close=()=>{close0();if(!done){done=true;res(null)}};
- D.set(title,sub);const get=build(D,()=>ok.click());const ok=btn(okText||'OK',danger?'dng':'',()=>fin(get()));D.foot.append(btn('Cancel','lnk',()=>fin(null)),ok);return D})}
-function askText(title,sub,value,o={}){return askDialog(title,sub,(D,submit)=>{const i=el('input');i.value=value||'';if(o.max)i.maxLength=o.max;if(o.placeholder)i.placeholder=o.placeholder;i.onkeydown=e=>e.key==='Enter'&&submit();D.body.append(field(o.label||'',i));setTimeout(()=>{i.focus();i.select()},30);return()=>i.value},o.ok,o.danger)}
+function askDialog(title,sub,build,okText,danger){return new Promise(res=>{
+ const ov=el('div','ov'),box=el('div','dg'),h=el('div','dg-h'),b=el('div','dg-b'),f=el('div','dg-f');ov.style.zIndex=5000;box.style.width='420px';
+ h.append(el('h2','',title));if(sub)h.append(el('p','',sub));
+ const others=[...document.body.children].filter(n=>!n.inert&&n.id!=='toasts');others.forEach(n=>n.inert=true);
+ let done=false;const fin=v=>{if(done)return;done=true;document.removeEventListener('focusin',trap,true);ov.remove();others.forEach(n=>n.inert=false);res(v)};
+ const D={body:b,foot:f,close:()=>fin(null)};let field0=null;const trap=e=>{if(!ov.contains(e.target)&&field0)field0.focus()};
+ const get=build(D,()=>ok.click());const ok=btn(okText||'OK',danger?'dng':'',()=>fin(get()));
+ f.append(btn('Cancel','lnk',()=>fin(null)),ok);
+ box.append(h,b,f);ov.append(box);document.body.append(ov);
+ // keep every keystroke inside this popup and force focus into its first box
+ ['keydown','keypress','keyup'].forEach(t=>ov.addEventListener(t,e=>{e.stopPropagation();if(t==='keydown'&&e.key==='Escape')fin(null)}));
+ ov.onmousedown=e=>{if(e.target===ov)fin(null)};
+ field0=b.querySelector('input,textarea');document.addEventListener('focusin',trap,true);
+ if(field0){field0.addEventListener('pointerdown',e=>e.stopPropagation());[0,30,120].forEach(t=>setTimeout(()=>{if(!done&&!ov.contains(document.activeElement)){field0.focus();field0.select()}},t));field0.focus();field0.select()}else ok.focus()})}
+function askText(title,sub,value,o={}){return askDialog(title,sub,(D,submit)=>{const i=el('input');i.value=value||'';if(o.max)i.maxLength=o.max;if(o.placeholder)i.placeholder=o.placeholder;i.onkeydown=e=>e.key==='Enter'&&submit();D.body.append(field(o.label||'',i));return()=>i.value},o.ok,o.danger)}
 function askConfirm(title,sub,o={}){return askDialog(title,sub,D=>{D.body.style.display='none';return()=>true},o.ok||'Confirm',o.danger).then(v=>!!v)}
