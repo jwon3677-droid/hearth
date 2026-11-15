@@ -16,7 +16,7 @@ const BD={
 };
 Object.keys(BD).forEach(k=>{BADGES[k]=BD[k].n});
 window.BD=BD;
-window.badge=function(k,full){const b=BD[k]||{n:k},s=el('span','bd bi'+(b.g?' bg':'')+(full?'':' ico'));if(b.g)s.style.setProperty('--bgd',b.g);else if(b.c)s.style.background=b.c;
+window.badge=function(k){const full=1;const b=BD[k]||{n:k},s=el('span','bd bi'+(b.g?' bg':'')+(full?'':' ico'));if(b.g)s.style.setProperty('--bgd',b.g);else if(b.c)s.style.background=b.c;
  s.title=b.n+(b.d?' — '+b.d:'');s.setAttribute('aria-label',b.n);if(b.i){const i=el('span','bic');i.innerHTML=b.i;s.append(i)}if(full||!b.i)s.append(el('span','',b.n));return s};
 // ---- display name / pronouns ----
 window.dn=u=>{if(u&&window.DECO){const id=u.uid||u.id;if(id&&'adeco' in u)DECO[id]=u.adeco||null}return(u&&(u.dname||u.username))||''};
