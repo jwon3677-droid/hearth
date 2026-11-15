@@ -42,12 +42,12 @@ function addServerDialog(){const D=dialog();
  const create=()=>{D.set('Customize your server','Give your new server a name. You can always invite people after.');
   const i=el('input');i.value=(me.username+"'s server").slice(0,30);i.maxLength=30;const f=field('Server name',i);D.body.append(f);
   const go=btn('Create','',async()=>{go.disabled=true;f.err();try{const r=await api('servers','POST',{name:i.value});await refresh();D.close();goServer(r.id)}catch(e){f.err(e.message);go.disabled=false}});
-  i.onkeydown=e=>e.key==='Enter'&&go.click();D.foot.append(btn('Back','lnk',start),go);i.focus();i.select()};
+  i.onkeydown=e=>{if(e.key==='Enter')go.click()};D.foot.append(btn('Back','lnk',start),go);i.focus();i.select()};
  const joinStep=()=>{D.set('Join a server','Enter an invite code below to join an existing server.');
   const i=el('input');i.placeholder='e.g. 4f9a1c2b7d';const f=field('Invite code',i);D.body.append(f);
   const go=btn('Join Server','',async()=>{const code=i.value.trim().split('/').pop();if(!code)return f.err('Enter an invite code');go.disabled=true;f.err();
    try{const r=await api('join','POST',{code});await refresh();D.close();goServer(r.id)}catch(e){f.err(e.message);go.disabled=false}});
-  i.onkeydown=e=>e.key==='Enter'&&go.click();D.foot.append(btn('Back','lnk',start),go);i.focus()};
+  i.onkeydown=e=>{if(e.key==='Enter')go.click()};D.foot.append(btn('Back','lnk',start),go);i.focus()};
  start()}
 
 function channelDialog(s,kind='text'){const D=dialog();D.set('Create channel','in '+s.name);let k=kind;
@@ -56,7 +56,7 @@ function channelDialog(s,kind='text'){const D=dialog();D.set('Create channel','i
  mk('text',IC.hash,'Text','Send messages, emoji and reactions');mk('voice',IC.spk,'Voice','Hang out together with voice');
  const i=el('input');i.placeholder='new-channel';i.maxLength=20;const f=field('Channel name',i);D.body.append(rows,f);
  const go=btn('Create Channel','',async()=>{go.disabled=true;f.err();try{await api('channels','POST',{server_id:s.id,name:i.value.trim().replace(/\s+/g,'-'),kind:k});await refresh();D.close()}catch(e){f.err(e.message);go.disabled=false}});
- i.onkeydown=e=>e.key==='Enter'&&go.click();D.foot.append(btn('Cancel','lnk',D.close),go);i.focus()}
+ i.onkeydown=e=>{if(e.key==='Enter')go.click()};D.foot.append(btn('Cancel','lnk',D.close),go);i.focus()}
 
 function inviteDialog(s){const D=dialog();D.set('Invite friends to '+s.name,'Share this code. Friends can paste it under Add a Server → Join a Server.');
  const i=el('input'),row=el('div','copyrow'),b=btn('Copy','',()=>{copyTxt(s.invite);b.textContent='Copied';b.classList.add('ok');setTimeout(()=>{b.textContent='Copy';b.classList.remove('ok')},1800)});
@@ -66,7 +66,7 @@ function addFriendDialog(){const D=dialog();D.set('Add friend','You can add frie
  const i=el('input');i.placeholder='Enter a username';const f=field('Username',i),ok=el('div','okm');D.body.append(f,ok);
  const go=btn('Send Friend Request','',async()=>{const n=i.value.trim();if(!n)return;go.disabled=true;f.err();ok.textContent='';
   try{await api('friends','POST',{username:n});ok.textContent='Success! Your friend request to '+n+' was sent.';i.value='';await refresh()}catch(e){f.err(e.message)}go.disabled=false});
- i.onkeydown=e=>e.key==='Enter'&&go.click();D.foot.append(btn('Close','lnk',D.close),go);i.focus()}
+ i.onkeydown=e=>{if(e.key==='Enter')go.click()};D.foot.append(btn('Close','lnk',D.close),go);i.focus()}
 
 function serverMenu(s,anchor){const r=anchor.getBoundingClientRect(),it=[['Invite People',()=>inviteDialog(s),{ic:IC.addp}]],mg=s.owner_id===me.id||isStaff();
  if(mg)it.push(['Server Settings',()=>serverSettings(s.id),{ic:IC.gear}],['Create Channel',()=>channelDialog(s),{ic:IC.plus}],['Server Tag',()=>tagDialog(s),{ic:IC.shield}]);
@@ -109,7 +109,7 @@ function serverSettings(sid,tab='ov'){const D=dialog('640px');D.box.classList.ad
   }
   if(tab==='ch'){pane.append(btn('+ Create Channel','',()=>channelDialog(s)));s.channels.forEach(c=>{const r=el('div','srow'),n=el('div','sn');n.append(ic(c.kind==='voice'?IC.spk:IC.hash,18),el('b','',c.name));const a=el('div','sa');
     a.append(btn('Rename','g sm',()=>{const D2=dialog();D2.set('Rename channel',c.name);const i=el('input');i.value=c.name;i.maxLength=20;const f=field('Channel name',i);D2.body.append(f);
-      const ok=btn('Save','',async()=>{f.err();try{await api('channels/'+c.id,'PUT',{name:i.value.trim().replace(/\s+/g,'-')});await refresh();D2.close();draw1()}catch(e){f.err(e.message)}});i.onkeydown=e=>e.key==='Enter'&&ok.click();D2.foot.append(btn('Cancel','lnk',D2.close),ok);i.focus()}),
+      const ok=btn('Save','',async()=>{f.err();try{await api('channels/'+c.id,'PUT',{name:i.value.trim().replace(/\s+/g,'-')});await refresh();D2.close();draw1()}catch(e){f.err(e.message)}});i.onkeydown=e=>{if(e.key==='Enter')ok.click()};D2.foot.append(btn('Cancel','lnk',D2.close),ok);i.focus()}),
      btn('Delete','dng sm',async()=>{if(await askConfirm('Delete #'+c.name+'?','The channel and all its messages will be gone for good.',{ok:'Delete Channel',danger:1}))run(async()=>{await api('channels/'+c.id,'DELETE');if(ch==='c'+c.id)open(null,'')},'Channel deleted')}));r.append(n,a);pane.append(r)})}
   if(tab==='mb'){pane.append(el('small','mu','Loading…'));api('members/'+s.id).then(l=>{if(tab!=='mb')return;pane.replaceChildren();l.forEach(m=>{const r=el('div','srow'),n=el('div','sn');n.append(el('b','',dn(m)),el('small','mu',m.username+(m.id===s.owner_id?' · owner':['staff','admin'].includes(m.role)?' · staff':'')));const a=el('div','sa');
      if(m.id!==s.owner_id&&!['staff','admin'].includes(m.role)&&m.id!==me.id)a.append(btn('Remove','dng sm',async()=>{if(await askConfirm('Remove '+m.username+'?','They can rejoin with an invite.',{ok:'Remove',danger:1}))run(()=>api('servers/'+s.id+'/members/'+m.id,'DELETE'),m.username+' removed')}));r.append(n,a);pane.append(r)})}).catch(fail)}
@@ -186,7 +186,7 @@ async function selfPop(anchor){let u;try{u=await api('user/'+me.id)}catch(e){ret
  Object.entries(STAT).forEach(([k,n])=>{const r=row(sdot(k),n,()=>setS(k,me.cstatus||''));r.classList.add('so');if(k===(me.status||'online'))r.classList.add('cur');sl.append(r)});
  // custom status
  const cr=row(IC.smile,me.cstatus?'Edit Custom Status':'Set Custom Status',()=>{cs.classList.toggle('open');cs.querySelector('input').focus()}),cs=el('div','psub cstat'),inp=el('input'),sv=btn('Save','sm',()=>setS(me.status||'online',inp.value.trim())),cl=btn('Clear','g sm',()=>setS(me.status||'online',''));
- inp.maxLength=60;inp.value=me.cstatus||'';inp.placeholder='What\'s on your mind?';inp.onkeydown=e=>e.key==='Enter'&&sv.click();cs.append(inp,sv,cl);
+ inp.maxLength=60;inp.value=me.cstatus||'';inp.placeholder='What\'s on your mind?';inp.onkeydown=e=>{if(e.key==='Enter')sv.click()};cs.append(inp,sv,cl);
  menu.append(row(IC.edit,'Edit Profile',()=>{popClose();editProfile()}),row(IC.gear,'User Settings',()=>{popClose();settings()}),el('div','psep'),sr,sl,cr,cs,el('div','psep'),
   row(IC.shield,'Badges',()=>{popClose();badgesDialog()}),...(isStaff()?[row(IC.users,'Staff Panel',()=>{popClose();staffPanel()})]:[]),row(IC.id,'Copy User ID',()=>{copyTxt(String(me.id));toast('User ID copied',1);popClose()}),el('div','psep'),
   row(IC.out,'Log Out',()=>{popClose();logout()},{dng:1}));
