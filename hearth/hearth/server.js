@@ -50,7 +50,7 @@ const server=http.createServer(app);
 const wss=new WebSocketServer({server,path:'/ws',maxPayload:16384,verifyClient:({origin,req})=>!origin||new URL(origin).host===req.headers.host});
 const bc=o=>wss.clients.forEach(c=>c.readyState===1&&c.send(JSON.stringify(o)));
 wss.on('connection',async(ws,req)=>{const u=await userFrom(cookie.parse(req.headers.cookie||'').t);if(!u)return ws.close();
- ws.uid=u.id;ws.name=u.username;let n=0;const t=setInterval(()=>n=0,1e4);ws.on('close',()=>{clearInterval(t);X.leave(ws)});
+ ws.uid=u.id;ws.name=u.username;bc({type:'presence'});let n=0;const t=setInterval(()=>n=0,1e4);ws.on('close',()=>{clearInterval(t);X.leave(ws);setTimeout(()=>bc({type:'presence'}),300)});
  ws.on('message',async raw=>{try{if(++n>40)return;const d=JSON.parse(raw),send=o=>ws.send(JSON.stringify(o));
   if(!(await q('select 1 from users where id=$1 and not banned',[u.id]))[0])return ws.close();
   if(d.type==='vleave')return X.leave(ws);
