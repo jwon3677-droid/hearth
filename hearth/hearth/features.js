@@ -54,14 +54,14 @@ module.exports=({app,q,need,err,X,MSG})=>{
  app.put('/api/msg/:id/react',need,async(req,res)=>{const m=await get(req,res);if(!m)return;const e=String((req.body||{}).emoji||'');
   if(e.length>32||!EMO.test(e))return err(res,'Not an emoji');
   const had=(await q('delete from reactions where msg_id=$1 and user_id=$2 and emoji=$3 returning 1',[m.id,req.u.id,e]))[0];
-  if(!had){if((await q('select count(distinct emoji)::int n from reactions where msg_id=$1',[m.id]))[0].n>=20)return err(res,'Max 20 different reactions');
+  if(!had){if(!req.u.owner&&(await q('select count(distinct emoji)::int n from reactions where msg_id=$1',[m.id]))[0].n>=20)return err(res,'Max 20 different reactions');
    await q('insert into reactions(msg_id,user_id,emoji) values($1,$2,$3) on conflict do nothing',[m.id,req.u.id,e])}
   X.to(await X.ppl(m.channel),{type:'react',id:m.id,channel:m.channel,rx:(await rxOf([m.id]))[m.id]||[]});res.json({})});
 
  // ---- pins: DM participants, or server owner / staff in servers
  app.put('/api/msg/:id/pin',need,async(req,res)=>{const m=await get(req,res);if(!m)return;const on=!!(req.body||{}).on;
   if(!m.channel.startsWith('dm')&&!await owns(req.u,m.channel))return err(res,'Only the server owner or staff can pin',403);
-  if(on&&(await q('select count(*)::int n from messages where channel=$1 and pinned',[m.channel]))[0].n>=50)return err(res,'Max 50 pinned messages');
+  if(on&&!req.u.owner&&(await q('select count(*)::int n from messages where channel=$1 and pinned',[m.channel]))[0].n>=50)return err(res,'Max 50 pinned messages');
   await q('update messages set pinned=$1 where id=$2',[on,m.id]);X.to(await X.ppl(m.channel),{type:'pin',id:m.id,channel:m.channel,pinned:on});res.json({})});
  app.get('/api/pins',need,async(req,res)=>{const ch=String(req.query.channel||'');if(!await X.can(req.u.id,ch))return err(res,'No access',403);
   res.json(await enrich(await q(MSG+' where m.channel=$1 and m.pinned order by m.id desc',[ch])))});

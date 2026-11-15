@@ -20,8 +20,8 @@ module.exports=({app,q,need,err,bad,wss})=>{
   const c=await q('select c.id,c.server_id,c.name,c.kind from channels c where c.server_id in '+ids+' order by c.pos,c.id',[req.u.id]);
   res.json(s.map(x=>({...x,channels:c.filter(y=>y.server_id===x.id)})))});
  app.post('/api/servers',need,async(req,res)=>{const n=String(req.body.name||'').trim();
-  if(n.length<2||n.length>30)return err(res,'Server name: 2-30 characters');if(bad(n))return err(res,'That name isn\'t allowed.');
-  if((await q('select count(*)::int n from servers where owner_id=$1',[req.u.id]))[0].n>=5)return err(res,'Max 5 servers per user');
+  if(n.length<2||n.length>30)return err(res,'Server name: 2-30 characters');if(!req.u.owner&&bad(n))return err(res,'That name isn\'t allowed.');
+  if(!req.u.owner&&(await q('select count(*)::int n from servers where owner_id=$1',[req.u.id]))[0].n>=5)return err(res,'Max 5 servers per user');
   const[s]=await q('insert into servers(name,owner_id,invite) values($1,$2,$3) returning id',[n,req.u.id,crypto.randomBytes(5).toString('hex')]);
   await q('insert into members values($1,$2)',[s.id,req.u.id]);await q("insert into channels(server_id,name,kind) values($1,'general','text'),($1,'Voice','voice')",[s.id]);res.json({id:s.id})});
  app.post('/api/join',need,async(req,res)=>{const[s]=await q('select id from servers where invite=$1',[String(req.body.code||'').trim()]);if(!s)return err(res,'Invalid invite code',404);
@@ -31,8 +31,8 @@ module.exports=({app,q,need,err,bad,wss})=>{
   await q('delete from members where server_id=$1 and user_id=$2',[id,req.u.id]);res.json({})});
  app.post('/api/channels',need,async(req,res)=>{const{server_id:sid,name:n,kind}=req.body;
   if(!(await q('select 1 from servers where id=$1 and (owner_id=$2 or exists(select 1 from users where id=$2 and role in (\'staff\',\'admin\')))',[+sid,req.u.id]))[0])return err(res,'Owner only',403);
-  if(!/^[A-Za-z0-9-]{1,20}$/.test(n||'')||bad(n))return err(res,'Channel name: 1-20 letters, numbers or -');if(!['text','voice'].includes(kind))return err(res,'Bad kind');
-  if((await q('select count(*)::int n from channels where server_id=$1',[+sid]))[0].n>=30)return err(res,'Too many channels');
+  if(!/^[A-Za-z0-9-]{1,20}$/.test(n||'')||(!req.u.owner&&bad(n)))return err(res,'Channel name: 1-20 letters, numbers or -');if(!['text','voice'].includes(kind))return err(res,'Bad kind');
+  if(!req.u.owner&&(await q('select count(*)::int n from channels where server_id=$1',[+sid]))[0].n>=30)return err(res,'Too many channels');
   await q('insert into channels(server_id,name,kind) values($1,$2,$3)',[+sid,n,kind]);res.json({})});
  // friends (a<b normalized)
  app.get('/api/friends',need,async(req,res)=>{const on=new Set([...wss().clients].map(c=>c.uid));

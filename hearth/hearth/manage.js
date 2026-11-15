@@ -11,7 +11,7 @@ module.exports=({app,q,need,err,bad,bcrypt,X,wss,BADGES})=>{
   await q('update users set tag_server=null where tag_server=$1',[sid]);await q('delete from mod_servers where server_id=$1',[sid]);
   await q('delete from channels where server_id=$1',[sid]);await q('delete from members where server_id=$1',[sid]);await q('delete from servers where id=$1',[sid])};
  const isLounge=async sid=>(await q("select 1 from servers where id=$1 and invite='hearth'",[sid]))[0];
- const nm=(res,n)=>{n=String(n||'').trim();if(n.length<2||n.length>30){err(res,'Server name: 2-30 characters');return null}if(bad(n)){err(res,'That name isn\'t allowed.');return null}return n};
+ const nm=(res,n,own)=>{n=String(n||'').trim();if(n.length<2||n.length>30){err(res,'Server name: 2-30 characters');return null}if(!own&&bad(n)){err(res,'That name isn\'t allowed.');return null}return n};
 
  // ---- staff: browse every server, start/stop moderating (admin access without joining)
  app.post('/api/staff/moderate',need,staff,async(req,res)=>{const id=+req.body.id;
@@ -20,7 +20,7 @@ module.exports=({app,q,need,err,bad,bcrypt,X,wss,BADGES})=>{
 
  // ---- server settings (owner or staff)
  app.put('/api/servers/:id',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);
-  const n=nm(res,(req.body||{}).name);if(!n)return;await q('update servers set name=$1 where id=$2',[n,id]);ping();res.json({})});
+  const n=nm(res,(req.body||{}).name,req.u.owner);if(!n)return;await q('update servers set name=$1 where id=$2',[n,id]);ping();res.json({})});
  const SS={desc:v=>String(v||'').slice(0,300),sysch:v=>/^\d{0,9}$/.test(String(v||''))?String(v||''):'',sysjoin:Boolean,sysboost:Boolean,systips:Boolean,notif:v=>['all','mentions'].includes(v)?v:'all',verif:v=>['none','low','medium','high'].includes(v)?v:'none',filter:v=>['off','nomembers','all'].includes(v)?v:'off',rules:v=>String(v||'').slice(0,1000),lang:v=>String(v||'en').slice(0,10),inv_pause:Boolean,slow:v=>[0,5,10,30,60,300].includes(+v)?+v:0,nsfw:Boolean,community:Boolean,boost_bar:Boolean,afk:v=>[0,60,300,900,1800,3600].includes(+v)?+v:300,color:v=>/^#[0-9a-f]{6}$/i.test(v)?v:''};
  app.put('/api/servers/:id/settings',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);
   const b=req.body||{},o={};Object.keys(SS).forEach(k=>{if(k in b)o[k]=SS[k](b[k])});
@@ -30,7 +30,7 @@ module.exports=({app,q,need,err,bad,bcrypt,X,wss,BADGES})=>{
  app.post('/api/servers/:id/invite',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);
   if(await isLounge(id))return err(res,'The Lounge invite can\'t be changed');const c=crypto.randomBytes(5).toString('hex');await q('update servers set invite=$1 where id=$2',[c,id]);res.json({invite:c})});
  app.put('/api/channels/:id',need,async(req,res)=>{const[c]=await q('select server_id from channels where id=$1',[+req.params.id]);if(!c)return err(res,'Not found',404);if(!await mgr(req.u,c.server_id))return err(res,'Owner only',403);
-  const n=String((req.body||{}).name||'');if(!/^[A-Za-z0-9-]{1,20}$/.test(n)||bad(n))return err(res,'Channel name: 1-20 letters, numbers or -');
+  const n=String((req.body||{}).name||'');if(!/^[A-Za-z0-9-]{1,20}$/.test(n)||(!req.u.owner&&bad(n)))return err(res,'Channel name: 1-20 letters, numbers or -');
   await q('update channels set name=$1 where id=$2',[n,+req.params.id]);ping();res.json({})});
  app.put('/api/servers/:id/channels/order',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);
   const ids=((req.body||{}).ids||[]).map(Number).filter(Number.isInteger),have=(await q('select id from channels where server_id=$1',[id])).map(r=>r.id);
@@ -93,6 +93,10 @@ module.exports=({app,q,need,err,bad,bcrypt,X,wss,BADGES})=>{
   kick_online:async t=>{wss().clients.forEach(c=>c.uid===t.id&&c.close())}};
  app.post('/api/staff/user/:id/act',need,staff,async(req,res)=>{const t=await target(req,res);if(!t)return;const a=String((req.body||{}).action||'');
   if(a==='role'){if(req.u.role!=='admin')return err(res,'Admins only',403);const r=req.body.role;if(!['user','staff'].includes(r))return err(res,'Bad role');await q('update users set role=$1 where id=$2',[r,t.id]);await log(req,'role',t.username,r);ping();return res.json({})}
+  if(a==='rename'){const n=String(req.body.name==null?'':req.body.name).replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/\s+/g,' ').trim().slice(0,32);
+   if(!n)return err(res,'Enter a username');const[o]=await q('select id,username from users where lower(username)=lower($1) and id<>$2',[n,t.id]);let moved='';
+   if(o){if(!req.u.owner)return err(res,'Username taken',409);if(o.id===req.u.id)return err(res,'That is your own username');do{moved='hearthusernamechanged'+(Math.floor(Math.random()*9e5)+1e5)}while((await q('select 1 from users where lower(username)=$1',[moved]))[0]);await q('update users set username=$1 where id=$2',[moved,o.id]);await log(req,'rename',o.username,'→ '+moved+' (name taken over)')}
+   await q('update users set username=$1 where id=$2',[n,t.id]);await log(req,'rename',t.username,'→ '+n+(req.body.reason?' ('+String(req.body.reason).slice(0,80)+')':''));ping();return res.json({})}
   if(a==='badge'){const{badge,on}=req.body;if(!BADGES.includes(badge))return err(res,'Bad badge');await q('update users set badges=case when $3 then array_append(array_remove(badges,$2),$2) else array_remove(badges,$2) end where id=$1',[t.id,badge,!!on]);await log(req,(on?'badge+':'badge-'),t.username,badge);ping();return res.json({})}
   if(!ACT[a])return err(res,'Unknown action');await ACT[a](t,req.body,req);await log(req,a,t.username,String(req.body.reason||''));ping();res.json({})});
  app.post('/api/staff/bulk',need,staff,async(req,res)=>{const ids=((req.body||{}).ids||[]).map(Number).filter(Number.isInteger).slice(0,100),a=(req.body||{}).action;if(!['ban','unban'].includes(a))return err(res,'Bad action');
@@ -103,7 +107,7 @@ module.exports=({app,q,need,err,bad,bcrypt,X,wss,BADGES})=>{
   res.json({total:t.n,rows:await q(`select s.id,s.name,s.tag,s.invite,u.username owner,(select count(*)::int from members m where m.server_id=s.id) members,(select count(*)::int from channels c where c.server_id=s.id) channels,
    exists(select 1 from mod_servers d where d.server_id=s.id and d.user_id=$1) moderating,exists(select 1 from members m where m.server_id=s.id and m.user_id=$1) joined from servers s left join users u on u.id=s.owner_id where ${w.join(' and ')} order by ${ord} limit ${L} offset ${O}`,p)})});
  app.post('/api/staff/server/:id/act',need,staff,async(req,res)=>{const id=+req.params.id,[s]=await q('select id,name,invite from servers where id=$1',[id]);if(!s)return err(res,'Not found',404);const a=String((req.body||{}).action||'');
-  if(a==='rename'){const n=nm(res,req.body.name);if(!n)return;await q('update servers set name=$1 where id=$2',[n,id])}
+  if(a==='rename'){const n=nm(res,req.body.name,req.u.owner);if(!n)return;await q('update servers set name=$1 where id=$2',[n,id])}
   else if(a==='reset_invite'){if(s.invite==='hearth')return err(res,'The Lounge invite is fixed');await q('update servers set invite=$1 where id=$2',[crypto.randomBytes(5).toString('hex'),id])}
   else if(a==='clear_tag'){await q('update servers set tag=null,tag_icon=null,tag_color=null where id=$1',[id]);await q('update users set tag_server=null where tag_server=$1',[id])}
   else if(a==='clear_desc'){await q("update servers set settings=coalesce(settings,'{}'::jsonb)-'desc'-'rules' where id=$1",[id])}

@@ -6,7 +6,7 @@ module.exports=({app,q,need,err,bad,THEMES,wss})=>{
  const ping=()=>wss().clients.forEach(c=>c.readyState===1&&c.send('{"type":"presence"}'));
  // one save for everything on the Edit Profile screen
  app.put('/api/profile2',need,async(req,res)=>{const b=req.body||{},dname=clean(b.dname,32),pronouns=clean(b.pronouns,30);
-  if(dname&&bad(dname))return err(res,'That display name isn\'t allowed.');if(pronouns&&bad(pronouns))return err(res,'Those pronouns aren\'t allowed.');
+  if(dname&&!req.u.owner&&bad(dname))return err(res,'That display name isn\'t allowed.');if(pronouns&&!req.u.owner&&bad(pronouns))return err(res,'Those pronouns aren\'t allowed.');
   if(!THEMES.includes(b.theme))return err(res,'Bad theme');if(!EFFECTS.includes(b.peffect))return err(res,'Bad effect');
   if(b.adeco!=null&&!DECOS.includes(b.adeco))return err(res,'Bad decoration');
   for(const c of[b.pc1,b.pc2])if(c!=null&&!HEX.test(c))return err(res,'Bad color');
@@ -17,7 +17,7 @@ module.exports=({app,q,need,err,bad,THEMES,wss})=>{
   if(!(await q("select 1 from servers where id=$1 and (owner_id=$2 or exists(select 1 from users where id=$2 and role in ('staff','admin')))",[id,req.u.id]))[0])return err(res,'Only the server owner or staff can set the tag',403);
   if(b.tag===''||b.tag==null){await q('update servers set tag=null,tag_icon=null,tag_color=null where id=$1',[id]);await q('update users set tag_server=null where tag_server=$1',[id]);ping();return res.json({})}
   const t=String(b.tag).trim().toUpperCase();
-  if(!/^[A-Z0-9]{2,4}$/.test(t))return err(res,'Tag: 2-4 letters or numbers');if(bad(t))return err(res,'That tag isn\'t allowed.');
+  if(!/^[A-Z0-9]{2,4}$/.test(t))return err(res,'Tag: 2-4 letters or numbers');if(!req.u.owner&&bad(t))return err(res,'That tag isn\'t allowed.');
   if(b.icon==='mascot'?!(await q("select 1 from servers where id=$1 and invite='hearth'",[id]))[0]:!ICONS.includes(b.icon))return err(res,'Bad icon');if(!HEX.test(b.color||''))return err(res,'Bad color');
   await q('update servers set tag=$1,tag_icon=$2,tag_color=$3 where id=$4',[t,b.icon,b.color.toLowerCase(),id]);ping();res.json({})});
  // each person picks which of their servers' tags to wear

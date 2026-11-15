@@ -125,3 +125,4 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .pcd .pbody{position:relative;z-index:1}.pnm{display:flex;align-items:center;flex-wrap:wrap;gap:2px}.pnm .stg{margin-left:8px}
 .pbs .bd.bi{margin:0}.pun{margin-top:1px}
 #bar>.ib:first-child{border-radius:8px 0 0 8px}#bar>.ib:first-child+input+#in{border-radius:0}
+.bd.bi.ico{padding:3px;margin-left:4px;cursor:default}.bd.bi.ico svg{width:16px;height:16px}#bar>.ib:first-child{color:#b5bac1;display:grid;place-items:center}#bar>.ib:first-child:hover{color:#dbdee1}#bar>.ib:first-child svg{width:24px;height:24px}

@@ -17,7 +17,8 @@ app.use('/api',rl({windowMs:6e4,max:120}));const authLimit=rl({windowMs:15*6e4,m
 const pub=u=>({id:u.id,username:u.username,theme:u.theme,badges:u.badges,role:u.role,nfont:u.nfont,neffect:u.neffect,ncolor:u.ncolor,ncolor2:u.ncolor2,status:u.status||'online',cstatus:u.cstatus||'',dname:u.dname,pronouns:u.pronouns,peffect:u.peffect,pc1:u.pc1,pc2:u.pc2,tag_server:u.tag_server,adeco:u.adeco,allow_fr:u.allow_fr!==false});
 const sign=(res,id)=>res.cookie('t',jwt.sign({id},SECRET,{expiresIn:'7d'}),{httpOnly:true,sameSite:'strict',secure:process.env.NODE_ENV==='production',maxAge:6048e5});
 const userFrom=async t=>{try{const{id}=jwt.verify(t,SECRET);return(await q('select * from users where id=$1 and not banned',[id]))[0]}catch{}};
-const need=async(req,res,next)=>{const u=await userFrom(cookie.parse(req.headers.cookie||'').t);if(!u)return res.status(401).json({error:'Not signed in'});req.u=u;next()};
+let OWN={id:0,t:0};const ownerId=async()=>{if(Date.now()-OWN.t>6e4)OWN={id:((await q('select min(id) id from users'))[0]||{}).id,t:Date.now()};return OWN.id};
+const need=async(req,res,next)=>{const u=await userFrom(cookie.parse(req.headers.cookie||'').t);if(!u)return res.status(401).json({error:'Not signed in'});u.owner=u.id===await ownerId();req.u=u;next()};
 const staff=(req,res,next)=>['staff','admin'].includes(req.u.role)?next():res.status(403).json({error:'Staff only'});
 const err=(res,m,c=400)=>res.status(c).json({error:m});
 app.post('/api/signup',authLimit,async(req,res)=>{const{username:n,password:p}=req.body||{};
@@ -33,7 +34,7 @@ app.post('/api/login',authLimit,async(req,res)=>{const{username:n,password:p}=re
  if(!u||typeof p!=='string'||!await bcrypt.compare(p,u.password))return err(res,'Wrong username or password',401);
  if(u.banned)return err(res,'This account is banned',403);sign(res,u.id);res.json(pub(u))});
 app.post('/api/logout',(req,res)=>{res.clearCookie('t');res.json({})});
-app.get('/api/me',need,(req,res)=>res.json(pub(req.u)));
+app.get('/api/me',need,(req,res)=>res.json({...pub(req.u),owner:!!req.u.owner}));
 app.put('/api/profile',need,async(req,res)=>{if(!THEMES.includes(req.body.theme))return err(res,'Bad theme');await q('update users set theme=$1 where id=$2',[req.body.theme,req.u.id]);res.json({})});
 const MSG='select m.id,m.channel,m.body,m.ts,m.edited,m.pinned,m.reply_to,m.mentions,m.ev,m.att_id,m.att_name,m.att_type,m.att_size,u.id uid,u.username,u.theme,u.badges,u.role,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+' from messages m join users u on u.id=m.user_id';
 app.get('/api/messages',need,async(req,res)=>{if(!await X.can(req.u.id,String(req.query.channel)))return err(res,'No access',403);
