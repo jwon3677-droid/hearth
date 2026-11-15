@@ -254,20 +254,52 @@ function tagDialog(s,done){const D=dialog();D.set('Server tag','Members can wear
  const save=async b=>{b.disabled=true;f.err();try{await api('servers/'+s.id+'/tag','PUT',b.rm?{tag:''}:{tag:i.value,icon:ico,color:col});await refresh();const n=servers.find(z=>z.id===s.id);if(n)Object.assign(s,n);D.close();done&&done()}catch(e){f.err(e.message);b.disabled=false}};
  const go=btn('Save Tag','',()=>save(go));D.foot.append(...(s.tag?[Object.assign(btn('Remove Tag','dng',()=>save(rm)),{})]:[]),btn('Cancel','lnk',D.close),go);const rm=D.foot.querySelector('.dng');rm&&(rm.rm=1);i.focus()}
 
-// ---------- staff panel ----------
-async function staffPanel(tab='users'){const D=dialog('720px');D.box.classList.add('wide');
- const render=async()=>{D.body.replaceChildren();const tb=el('div','sstabs');[['users','Users'],['servers','Servers']].forEach(([k,n])=>{const b=el('button','sst'+(tab===k?' on':''),n);b.type='button';b.onclick=()=>{tab=k;render()};tb.append(b)});
-  let us;try{us=await api(tab==='users'?'staff/users':'staff/servers')}catch(e){D.close();return fail(e)}D.set('Staff panel',tab==='users'?'Manage badges, roles and bans.':'Admin access to every server — invisible to members.');D.foot.style.display='none';D.body.append(tb);
-  const go=(p,b)=>async()=>{try{await api(p,'POST',b);render()}catch(e){fail(e)}};
-  if(tab==='servers'){us.forEach(s=>{const r=el('div','srow'),n=el('div','sn'),act=el('div','sa');n.append(el('b','',s.name+(s.tag?'  ['+s.tag+']':'')),el('small','mu','owner '+(s.owner||'—')+' · '+s.members+' members · '+s.channels+' channels'));
-    if(s.joined)act.append(el('small','mu','you\'re a member'));
-    act.append(btn(s.moderating?'Open':'Moderate','sm',async()=>{try{if(!s.moderating)await api('staff/moderate','POST',{id:s.id,on:true});await refresh();D.close();goServer(s.id)}catch(e){fail(e)}}));
-    if(s.moderating)act.append(btn('Stop','g sm',go('staff/moderate',{id:s.id,on:false})));r.append(n,act);D.body.append(r)});return}
-  us.forEach(u=>{const r=el('div','srow'),n=el('div','sn'),act=el('div','sa');n.append(el('b','',u.username),el('small','mu',(u.role!=='user'?u.role:'member')+(u.banned?' · banned':'')));
-   if(u.role==='user')act.append(btn(u.banned?'Unban':'Ban',u.banned?'g sm':'dng sm',go('staff/ban',{id:u.id,banned:!u.banned})));
-   if(me.role==='admin'&&u.role!=='admin')act.append(btn(u.role==='staff'?'Demote':'Make staff','g sm',go('staff/role',{id:u.id,role:u.role==='staff'?'user':'staff'})));
-   Object.keys(BADGES).forEach(k=>{const has=u.badges.includes(k),b=btn((has?'− ':'+ ')+BADGES[k],'g sm'+(has?' on':''),go('staff/badge',{id:u.id,badge:k,on:!has}));act.append(b)});r.append(n,act);D.body.append(r)})};
- render()}
+// ---------- staff panel (search + pages, built for lots of people) ----------
+async function staffPanel(tab='ov'){const D=dialog('860px');D.box.classList.add('wide','staffw');D.foot.style.display='none';
+ const TABS=[['ov','Overview'],['users','Users'],['servers','Servers'],['msgs','Messages'],['log','Audit Log']],tb=el('div','sstabs'),pane=el('div','sspane');
+ let st={users:{q:'',filter:'all',sort:'new',off:0,sel:new Set(),open:null},servers:{q:'',sort:'new',off:0},msgs:{q:'',user:'',off:0},log:{off:0}},tmr=0;
+ const PG=20,qs=o=>Object.entries(o).filter(([k,v])=>v!==''&&v!=null&&typeof v!=='object').map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+ const ago=d=>{const s=(Date.now()-new Date(d))/1e3;return s<60?'just now':s<3600?Math.floor(s/60)+'m ago':s<86400?Math.floor(s/3600)+'h ago':Math.floor(s/86400)+'d ago'};
+ const search=(ph,val,on)=>{const i=el('input','sbar');i.placeholder=ph;i.value=val;i.oninput=()=>{clearTimeout(tmr);tmr=setTimeout(()=>on(i.value.trim()),300)};return i};
+ const pick=(opts,val,on)=>{const s=el('select','sel2');opts.forEach(([v,n])=>{const o=el('option','',n);o.value=v;s.append(o)});s.value=val;s.onchange=()=>on(s.value);return s};
+ const pager=(S,total,go)=>{const w=el('div','pgr'),a=Math.min(S.off+1,total),z=Math.min(S.off+PG,total);w.append(btn('‹ Prev','g sm',()=>{S.off=Math.max(0,S.off-PG);go()}),el('span','mu',total?a+'–'+z+' of '+total:'No results'),btn('Next ›','g sm',()=>{if(S.off+PG<total){S.off+=PG;go()}}));w.children[0].disabled=S.off===0;w.children[2].disabled=S.off+PG>=total;return w};
+ const act=async(path,body,msg,after)=>{try{await api(path,'POST',body);msg&&toast(msg,1);after&&await after()}catch(e){fail(e)}};
+ const draw1=async()=>{tb.replaceChildren();TABS.forEach(([k,n])=>{const b=el('button','sst'+(tab===k?' on':''),n);b.type='button';b.onclick=()=>{tab=k;draw1()};tb.append(b)});
+  D.set('Staff panel',{ov:'Server health at a glance.',users:'Search, filter and moderate accounts.',servers:'Admin access to every server — invisible to members.',msgs:'Find and delete messages anywhere.',log:'Everything staff have done.'}[tab]);D.body.append(tb,pane);pane.replaceChildren(el('small','mu','Loading…'));
+  try{await T[tab]()}catch(e){fail(e)}};
+ const T={
+ async ov(){const o=await api('staff/overview'),g=el('div','sgrid');[['Users',o.users],['Online now',o.online],['New this week',o.new7],['Banned',o.banned],['Staff',o.staff],['Servers',o.servers],['Channels',o.channels],['Messages',o.msgs],['Messages (24h)',o.msgs24],['Friendships',o.friends]].forEach(([l,v])=>{const c=el('div','scard');c.append(el('b','',Number(v).toLocaleString()),el('small','mu',l));g.append(c)});pane.replaceChildren(g)},
+ async users(){const S=st.users,r=await api('staff/users?'+qs({q:S.q,filter:S.filter,sort:S.sort,offset:S.off,limit:PG})),bar=el('div','sfilters');
+  bar.append(search('Search username, display name or ID…',S.q,v=>{S.q=v;S.off=0;T.users()}),pick([['all','Everyone'],['online','Online'],['new','New (7 days)'],['staff','Staff'],['banned','Banned'],['nobadge','No badges']],S.filter,v=>{S.filter=v;S.off=0;T.users()}),pick([['new','Newest'],['old','Oldest'],['name','Name A–Z'],['msgs','Most messages']],S.sort,v=>{S.sort=v;S.off=0;T.users()}));
+  const bulk=el('div','sbulk'),upd=()=>{bulk.replaceChildren();if(!S.sel.size)return;bulk.append(el('span','',S.sel.size+' selected'),btn('Ban','dng sm',()=>{if(confirm('Ban '+S.sel.size+' users?'))act('staff/bulk',{ids:[...S.sel],action:'ban'},'Banned',()=>{S.sel.clear();T.users()})}),btn('Unban','g sm',()=>act('staff/bulk',{ids:[...S.sel],action:'unban'},'Unbanned',()=>{S.sel.clear();T.users()})),btn('Clear','lnk sm',()=>{S.sel.clear();T.users()}))};upd();
+  const list=el('div','slist');
+  r.rows.forEach(x=>{const row=el('div','srow2'),cb=el('input');cb.type='checkbox';cb.checked=S.sel.has(x.id);cb.disabled=x.role!=='user';cb.onclick=e=>{e.stopPropagation();cb.checked?S.sel.add(x.id):S.sel.delete(x.id);upd()};
+   const n=el('div','sn');n.append(el('b','',x.username+(x.dname&&x.dname!==x.username?'  · '+x.dname:'')),el('small','mu','#'+x.id+' · joined '+ago(x.created)+' · '+x.msgs+' msgs'));
+   const chips=el('div','schips');if(x.online)chips.append(el('span','chip on','online'));if(x.role!=='user')chips.append(el('span','chip stf',x.role));if(x.banned)chips.append(el('span','chip bn','banned'));
+   row.append(cb,n,chips);row.onclick=()=>{S.open=S.open===x.id?null:x.id;T.users()};list.append(row);
+   if(S.open===x.id){const dt=el('div','sdetail');dt.append(el('small','mu','Loading…'));list.append(dt);userDetail(x,dt,()=>T.users())}});
+  pane.replaceChildren(bar,bulk,list,pager(S,r.total,()=>T.users()))},
+ async servers(){const S=st.servers,r=await api('staff/servers?'+qs({q:S.q,sort:S.sort,offset:S.off,limit:PG})),bar=el('div','sfilters');
+  bar.append(search('Search server, tag or owner…',S.q,v=>{S.q=v;S.off=0;T.servers()}),pick([['new','Newest'],['old','Oldest'],['name','Name A–Z'],['size','Most members']],S.sort,v=>{S.sort=v;S.off=0;T.servers()}));const list=el('div','slist');
+  r.rows.forEach(s=>{const row=el('div','srow2'),n=el('div','sn'),a=el('div','sa');n.append(el('b','',s.name+(s.tag?'  ['+s.tag+']':'')),el('small','mu','owner '+(s.owner||'—')+' · '+s.members+' members · '+s.channels+' channels'));
+   a.append(btn(s.moderating?'Open':'Moderate','sm',async()=>{try{if(!s.moderating)await api('staff/moderate','POST',{id:s.id,on:true});await refresh();D.close();goServer(s.id)}catch(e){fail(e)}}));
+   if(s.moderating)a.append(btn('Stop','g sm',()=>act('staff/moderate',{id:s.id,on:false},null,T.servers)));
+   const more=btn('More ▾','g sm',e=>{const b=e.currentTarget.getBoundingClientRect();ctxOpen(b.left,b.bottom+4,[['Rename…',()=>{const n=prompt('New server name',s.name);n&&act('staff/server/'+s.id+'/act',{action:'rename',name:n},'Renamed',T.servers)}],['Reset invite code',()=>act('staff/server/'+s.id+'/act',{action:'reset_invite'},'Invite reset',T.servers)],['Remove server tag',()=>act('staff/server/'+s.id+'/act',{action:'clear_tag'},'Tag removed',T.servers)],['Clear description & rules',()=>act('staff/server/'+s.id+'/act',{action:'clear_desc'},'Cleared',T.servers)],...(me.role==='admin'&&s.invite!=='hearth'?['sep',['Delete server…',()=>{if(prompt('Type the server name to delete it:\n'+s.name)===s.name)act('staff/server/'+s.id+'/act',{action:'delete'},'Server deleted',()=>{refresh();T.servers()})},{danger:1}]]:[])])});a.append(more);row.append(n,a);list.append(row)});
+  pane.replaceChildren(bar,list,pager(S,r.total,()=>T.servers()))},
+ async msgs(){const S=st.msgs,r=await api('staff/messages?'+qs({q:S.q,user:S.user,offset:S.off,limit:PG})),bar=el('div','sfilters');
+  bar.append(search('Search message text…',S.q,v=>{S.q=v;S.off=0;T.msgs()}),search('From user…',S.user,v=>{S.user=v;S.off=0;T.msgs()}));const list=el('div','slist');
+  r.rows.forEach(m=>{const row=el('div','srow2'),n=el('div','sn');n.append(el('b','',m.username),el('small','mu',ago(m.ts)+' · '+m.channel),el('span','smsg',m.body));row.append(n,btn('Delete','dng sm',()=>{if(confirm('Delete this message?'))api('staff/msg/'+m.id,'DELETE').then(()=>{toast('Deleted',1);T.msgs()}).catch(fail)}));list.append(row)});
+  pane.replaceChildren(bar,list,pager(S,r.total,()=>T.msgs()))},
+ async log(){const S=st.log,r=await api('staff/log?'+qs({offset:S.off,limit:PG})),list=el('div','slist');
+  r.rows.forEach(l=>{const row=el('div','srow2'),n=el('div','sn');n.append(el('b','',l.actor_name+' · '+l.action),el('small','mu',(l.target||'')+(l.detail?' — '+l.detail:'')+' · '+ago(l.ts)));row.append(n);list.append(row)});if(!r.rows.length)list.append(el('small','mu','Nothing logged yet.'));
+  pane.replaceChildren(list,pager(S,r.total,()=>T.log()))}};
+ function userDetail(x,dt,reload){api('staff/user/'+x.id).then(d=>{dt.replaceChildren();const info=el('div','sinfo');[['ID',d.id],['Joined',new Date(d.created).toLocaleDateString()],['Messages',d.msgs],['Last message',d.last_msg?ago(d.last_msg):'—'],['Friends',d.friends],['Servers',d.servers.map(s=>s.name+(s.owner?' (owner)':'')).join(', ')||'—'],['Bio',d.bio||'—'],['Status',d.cstatus||'—']].forEach(([k,v])=>{const r=el('div');r.append(el('b','',k+': '),el('span','',String(v)));info.append(r)});dt.append(info);
+  const can=x.role==='user'||(me.role==='admin'&&x.role==='staff'),A=(l,a,cls,msg,conf,extra)=>btn(l,cls||'g sm',()=>{if(conf&&!confirm(conf))return;act('staff/user/'+x.id+'/act',{action:a,...(extra||{})},msg||'Done',reload)}),box=el('div','sacts');
+  if(!can){dt.append(el('small','mu','You can\'t moderate this account.'));return}
+  box.append(d.banned?A('Unban','unban','ok sm','Unbanned'):A('Ban','ban','dng sm','Banned','Ban '+d.username+'?'),A('Disconnect','kick_online','g sm','Disconnected'),A('Clear avatar','clear_avatar'),A('Clear banner','clear_banner'),A('Clear bio','clear_bio'),A('Clear status','clear_status'),A('Clear display name','clear_dname'),A('Remove server tag','clear_tag'),A('Reset profile look','reset_look'),A('Remove all badges','strip_badges','g sm',null,'Remove every badge?'),A('Leave all servers','leave_all','g sm',null,'Remove from every server except the Lounge?'),A('Delete all messages','purge_msgs','dng sm','Messages deleted','Permanently delete ALL of '+d.username+'\'s messages?'));
+  if(me.role==='admin')box.append(A(x.role==='staff'?'Demote to member':'Make staff','role','g sm','Role changed',null,{role:x.role==='staff'?'user':'staff'}));dt.append(box);
+  const bd=el('div','sacts');bd.append(el('small','mu','Badges:'));Object.keys(BADGES).forEach(k=>{const has=d.badges.includes(k);bd.append(btn((has?'− ':'+ ')+BADGES[k],'g sm'+(has?' on':''),()=>act('staff/user/'+x.id+'/act',{action:'badge',badge:k,on:!has},null,reload)))});dt.append(bd)}).catch(e=>{dt.replaceChildren(el('small','err',e.message))})}
+ draw1()}
 
 // ---------- members list ----------
 async function members(){const p=$('#mem');if(!p)return;const sid=cur,tok=++memTok;if(sid==='home'){p.replaceChildren();return}
@@ -286,7 +318,7 @@ const fmtT=ms=>{const s=Math.max(0,Math.floor(ms/1e3)),h=Math.floor(s/3600),m=Ma
 function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)return;const sc=side.querySelector('.sbody'),top=sc?sc.scrollTop:0;rail.replaceChildren();side.replaceChildren();
  const rb=(c,tt,on,fn,cls)=>{const b=el('div','rb'+(on?' on':'')+(cls?' '+cls:''));typeof c==='string'?b.textContent=c:b.append(c);b.title=tt;b.onclick=fn;rail.append(b);return b},home=new Image();home.src=MURI;
  railBadge(rb(home,'Home & DMs',cur==='home',goHome),friends.filter(f=>f.status==='ok').map(f=>dmKey(f.id)));rail.append(el('div','sep'));
- servers.forEach(s=>{const b=rb(s.invite==='hearth'?(()=>{const m=new Image();m.src=MURI;return m})():initials(s.name),s.name+(s.is_mod?' (moderating)':''),cur===s.id,()=>goServer(s.id));if(s.is_mod){b.classList.add('modrb');b.append(el('i','modmk','🛡'))}railBadge(b,s.channels.map(c=>'c'+c.id))});
+ servers.forEach(s=>{const b=rb(s.invite==='hearth'?(()=>{const m=new Image();m.src='/server-icon.svg';m.style.cssText='width:100%;height:100%;border-radius:inherit;object-fit:cover';return m})():initials(s.name),s.name+(s.is_mod?' (moderating)':''),cur===s.id,()=>goServer(s.id));if(s.is_mod){b.classList.add('modrb');b.append(el('i','modmk','🛡'))}railBadge(b,s.channels.map(c=>'c'+c.id))});
  rb(ic(IC.plus,22),'Add a Server',false,addServerDialog,'add');
  $('#app').classList.toggle('nomem',cur==='home'||!showMem);
  const hdr=el('div','sh'),body=el('div','sbody');

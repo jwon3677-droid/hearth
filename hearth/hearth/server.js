@@ -38,7 +38,6 @@ app.put('/api/profile',need,async(req,res)=>{if(!THEMES.includes(req.body.theme)
 const MSG='select m.id,m.channel,m.body,m.ts,m.edited,m.pinned,m.reply_to,m.mentions,m.ev,u.id uid,u.username,u.theme,u.badges,u.role,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+' from messages m join users u on u.id=m.user_id';
 app.get('/api/messages',need,async(req,res)=>{if(!await X.can(req.u.id,String(req.query.channel)))return err(res,'No access',403);
  res.json(await F.enrich((await q(MSG+' where m.channel=$1 order by m.id desc limit 50',[String(req.query.channel)])).reverse()))});
-app.get('/api/staff/users',need,staff,async(req,res)=>res.json(await q('select id,username,role,badges,banned from users order by id desc limit 200')));
 app.post('/api/staff/ban',need,staff,async(req,res)=>{await q("update users set banned=$1 where id=$2 and role='user'",[!!req.body.banned,+req.body.id]);res.json({})});
 app.post('/api/staff/badge',need,staff,async(req,res)=>{const{id,badge,on}=req.body;if(!BADGES.includes(badge))return err(res,'Bad badge');
  await q('update users set badges=case when $3 then array_append(array_remove(badges,$2),$2) else array_remove(badges,$2) end where id=$1',[+id,badge,!!on]);res.json({})});
@@ -48,7 +47,7 @@ app.delete('/api/staff/msg/:id',need,staff,async(req,res)=>{await q('delete from
 const X=require('./extra')({app,q,need,err,bad,wss:()=>wss});
 const F=require('./features')({app,q,need,err,X,MSG});
 require('./profile')({app,q,need,err,bad,THEMES,wss:()=>wss});
-require('./manage')({app,q,need,err,bad,bcrypt,X,wss:()=>wss});
+require('./manage')({app,q,need,err,bad,bcrypt,X,wss:()=>wss,BADGES});
 app.use((e,req,res,next)=>{console.error(e);res.status(500).json({error:'Server error'})});
 const server=http.createServer(app);
 const wss=new WebSocketServer({server,path:'/ws',maxPayload:16384,verifyClient:({origin,req})=>!origin||new URL(origin).host===req.headers.host});
@@ -87,5 +86,5 @@ create index if not exists m_chan on messages(channel,id);
 create table if not exists reactions(msg_id int references messages(id) on delete cascade,user_id int references users(id) on delete cascade,emoji text,ts timestamptz default now(),primary key(msg_id,user_id,emoji));
 alter table users add column if not exists dname text;alter table users add column if not exists pronouns text;alter table users add column if not exists peffect text default 'none';alter table users add column if not exists pc1 text;alter table users add column if not exists pc2 text;alter table users add column if not exists tag_server int;
 alter table users add column if not exists allow_fr boolean default true;create table if not exists mod_servers(user_id int references users(id) on delete cascade,server_id int,primary key(user_id,server_id));
-alter table servers add column if not exists tag text;alter table servers add column if not exists tag_icon text;alter table servers add column if not exists tag_color text;alter table users add column if not exists adeco text;alter table channels add column if not exists pos int default 2147483647;update servers set owner_id=(select id from users where role='admin' order by id limit 1) where invite='hearth' and (owner_id=0 or owner_id is null) and exists(select 1 from users where role='admin');alter table servers add column if not exists settings jsonb default '{}';`);
+alter table servers add column if not exists tag text;alter table servers add column if not exists tag_icon text;alter table servers add column if not exists tag_color text;alter table users add column if not exists adeco text;create table if not exists staff_log(id serial primary key,actor int,actor_name text,action text,target text,detail text,ts timestamptz default now());create index if not exists sl_ts on staff_log(id desc);alter table channels add column if not exists pos int default 2147483647;update servers set owner_id=(select id from users where role='admin' order by id limit 1) where invite='hearth' and (owner_id=0 or owner_id is null) and exists(select 1 from users where role='admin');alter table servers add column if not exists settings jsonb default '{}';`);
  server.listen(process.env.PORT||3000,()=>console.log('Hearth running'))})();
