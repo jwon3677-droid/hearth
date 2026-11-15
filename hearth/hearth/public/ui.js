@@ -133,7 +133,8 @@ function popout(rect,mode,node){popClose();const p=el('div','po');p.append(node)
  setTimeout(()=>{document.addEventListener('mousedown',popOut,true);document.addEventListener('keydown',popKey,true)},0);return p}
 
 // ---------- profile card (popout, full profile and the edit-profile preview all share this) ----------
-const sdot=s=>el('i','sd '+(s||'offline'));
+const sdot=s=>{const k=s||'offline',e=el('i','sd sdi '+k),P={online:'<circle cx="8" cy="8" r="6" fill="#23a55a"/>',idle:'<path d="M13.3 9.6A5.6 5.6 0 0 1 6.4 2.7a5.6 5.6 0 1 0 6.9 6.9z" fill="#f0b232"/>',dnd:'<circle cx="8" cy="8" r="6.5" fill="#f23f43"/><rect x="4.2" y="6.7" width="7.6" height="2.6" rx="1.3" fill="#1e1f22"/>',invisible:'<circle cx="8" cy="8" r="5" fill="none" stroke="#80848e" stroke-width="2.6"/>'};
+ e.innerHTML='<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">'+(P[k]||P.invisible)+'</svg>';return e};
 function pcard(u,o={}){const t=THEMES[u.theme]||THEMES.midnight,c=el('div','pcd'+(o.big?' big':'')),bh=o.big?(u.hb?140:96):(u.hb?105:60),bn=el('div','pbn'),pav=el('div','pav'),w=el('div','st'+stc(u.ps));
  const g1=u.pc1||t[0],g2=u.pc2||t[1];c.style.setProperty('--bh',bh+'px');c.style.setProperty('--pa',g1);c.classList.add('pct');c.style.overflow='hidden';bn.style.height=bh+'px';c.style.setProperty('--pb',g2);bn.style.background=u.hb?`url(/api/banner/${u.id}?v=${AV}) center/cover`:'transparent';
  w.append(av(u.id,u.username,u.theme,u.adeco||'none'));pav.append(w);c.append(bn,pav);
