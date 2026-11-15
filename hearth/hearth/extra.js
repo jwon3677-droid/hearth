@@ -2,16 +2,27 @@ const crypto=require('crypto');
 const UX=require('./ux');
 module.exports=({app,q,need,err,bad,wss})=>{
  const rooms={},vstart={};
- const can=async(uid,k)=>{let m;
-  if(m=/^dm(\d+)_(\d+)$/.exec(k))return+m[1]<+m[2]&&(+m[1]===uid||+m[2]===uid)&&(await q("select 1 from friends where status='ok' and a=$1 and b=$2",[+m[1],+m[2]]))[0];
+ const can=async(uid,k,strict)=>{let m;
+  if(m=/^dm(\d+)_(\d+)$/.exec(k)){const a=+m[1],b=+m[2];if(!(a<b&&(a===uid||b===uid)))return false;const o=a===uid?b:a;
+   if(!(await q('select 1 from users where id=$1 and not banned',[o]))[0])return false;
+   if((await q("select 1 from friends where status='ok' and a=$1 and b=$2",[a,b]))[0])return true;
+   const[d]=await q('select status,by from dm_state where a=$1 and b=$2',[a,b]);
+   if(strict)return !!d&&d.status==='ok';           // voice calls need an accepted conversation
+   if(!d||d.status!=='no')return true;               // anyone can message anyone; strangers land in Message Requests
+   return d.by!==uid}                                // declined: the sender can no longer message them
   if(m=/^c(\d+)$/.exec(k))return(await q('select 1 from channels c where c.id=$1 and (exists(select 1 from members s where s.server_id=c.server_id and s.user_id=$2) or exists(select 1 from users where id=$2 and role in (\'staff\',\'admin\')))',[+m[1],uid]))[0]};
+ const dmSend=async(uid,k)=>{const m=/^dm(\d+)_(\d+)$/.exec(k);if(!m)return;const a=+m[1],b=+m[2];
+  if((await q("select 1 from friends where status='ok' and a=$1 and b=$2",[a,b]))[0])return;
+  const[d]=await q('select status,by from dm_state where a=$1 and b=$2',[a,b]);
+  if(!d)await q("insert into dm_state values($1,$2,$3,'req') on conflict do nothing",[a,b,uid]);
+  else if(d.status!=='ok'&&d.by!==uid)await q("update dm_state set status='ok' where a=$1 and b=$2",[a,b])};   // replying accepts the request
  const ppl=async k=>{const m=/^dm(\d+)_(\d+)$/.exec(k);return m?[+m[1],+m[2]]:(await q("select s.user_id from members s join channels c on c.server_id=s.server_id where c.id=$1 union select id from users where role in ('staff','admin')",[+k.slice(1)])).map(r=>r.user_id)};
  const to=(ids,o)=>wss().clients.forEach(c=>c.readyState===1&&ids.includes(c.uid)&&c.send(JSON.stringify(o)));
  const vpeers=k=>[...(rooms[k]||[])].map(c=>({id:c.uid,name:c.name,muted:!!c.muted,deaf:!!c.deaf}));
  const vmsg=k=>{const p=vpeers(k);return{type:'vroom',ch:k,peers:p,dur:p.length&&vstart[k]?Date.now()-vstart[k]:0}};
  const vbc=async k=>{try{to(await ppl(k),vmsg(k))}catch{}};
  // send a newly connected socket the voice rooms it is allowed to see
- const snap=async ws=>{try{for(const k of Object.keys(rooms))if(rooms[k].size&&await can(ws.uid,k))ws.send(JSON.stringify(vmsg(k)))}catch{}};
+ const snap=async ws=>{try{for(const k of Object.keys(rooms))if(rooms[k].size&&await can(ws.uid,k,true))ws.send(JSON.stringify(vmsg(k)))}catch{}};
  const leave=ws=>{const k=ws.room,r=rooms[k];if(!r)return;r.delete(ws);r.forEach(c=>c.send(JSON.stringify({type:'vout',id:ws.uid})));ws.room=null;
   if(!r.size){delete rooms[k];delete vstart[k]}vbc(k)};
  // servers & channels
@@ -42,6 +53,12 @@ module.exports=({app,q,need,err,bad,wss})=>{
   if(!o||o.id===req.u.id)return err(res,'User not found',404);if(o.allow_fr===false)return err(res,'This user isn\'t accepting friend requests.',403);const a=Math.min(o.id,req.u.id),b=Math.max(o.id,req.u.id);
   await q("insert into friends values($1,$2,'pending',$3) on conflict(a,b) do update set status='ok' where friends.status='pending' and friends.by<>$3",[a,b,req.u.id]);res.json({})});
  app.post('/api/friends/accept',need,async(req,res)=>{const o=+req.body.id;await q("update friends set status='ok' where a=$1 and b=$2 and by<>$3",[Math.min(o,req.u.id),Math.max(o,req.u.id),req.u.id]);res.json({})});
+ app.get('/api/dms',need,async(req,res)=>{const me=req.u.id,on=new Set([...wss().clients].map(c=>c.uid));
+  const rows=await q("select u.id,u.username,u.theme,u.adeco,u.status pst,d.status,d.by from dm_state d join users u on u.id=case when d.a=$1 then d.b else d.a end where (d.a=$1 or d.b=$1) and not u.banned and d.status<>'no' order by d.status desc,lower(u.username)",[me]);
+  const o=r=>({id:r.id,username:r.username,theme:r.theme,adeco:r.adeco,ps:on.has(r.id)&&r.pst!=='invisible'?r.pst||'online':'offline'});
+  res.json({list:rows.filter(r=>r.status==='ok'||r.by===me).map(o),reqs:rows.filter(r=>r.status==='req'&&r.by!==me).map(o)})});
+ app.post('/api/dm/accept',need,async(req,res)=>{const o=+req.body.id;await q("update dm_state set status='ok' where a=$1 and b=$2 and by<>$3",[Math.min(o,req.u.id),Math.max(o,req.u.id),req.u.id]);res.json({})});
+ app.post('/api/dm/decline',need,async(req,res)=>{const o=+req.body.id;await q("update dm_state set status='no' where a=$1 and b=$2 and by<>$3",[Math.min(o,req.u.id),Math.max(o,req.u.id),req.u.id]);res.json({})});
  app.delete('/api/friends/:id',need,async(req,res)=>{const o=+req.params.id;await q('delete from friends where a=$1 and b=$2',[Math.min(o,req.u.id),Math.max(o,req.u.id)]);res.json({})});
  // avatars: client re-encodes to 128px JPEG; server verifies magic bytes + size, serves with fixed type
  const mime=b=>b.slice(0,4).toString()==='GIF8'?'image/gif':b[0]===0xff&&b[1]===0xd8?'image/jpeg':b.slice(1,4).toString()==='PNG'?'image/png':b.slice(0,4).toString()==='RIFF'&&b.slice(8,12).toString()==='WEBP'?'image/webp':null;
@@ -68,4 +85,4 @@ module.exports=({app,q,need,err,bad,wss})=>{
   const[f]=await q('select status,by from friends where a=$1 and b=$2',[Math.min(u.id,req.u.id),Math.max(u.id,req.u.id)]);res.json({...u,friend:f||null})});
  app.get('/api/members/:sid',need,async(req,res)=>{if(!(await q('select 1 where exists(select 1 from members where server_id=$1 and user_id=$2) or exists(select 1 from users where id=$2 and role in (\'staff\',\'admin\'))',[+req.params.sid,req.u.id]))[0])return err(res,'No access',403);
   const on=new Set([...wss().clients].map(c=>c.uid));res.json((await q('select u.id,u.username,u.role,u.theme,u.badges,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+',u.status,u.cstatus from users u join members m on m.user_id=u.id where m.server_id=$1 and not u.banned order by lower(u.username) limit 500',[+req.params.sid])).map(({status,...u})=>{const o=on.has(u.id)&&status!=='invisible';return{...u,online:o,ps:o?status||'online':'offline'}}))});
- return{can,ppl,to,leave,rooms,vstart,vbc,snap}};
+ return{can,ppl,to,leave,rooms,vstart,vbc,snap,dmSend}};
