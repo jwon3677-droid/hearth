@@ -144,7 +144,7 @@ addEventListener('keydown',e=>document.body.classList.toggle('shift',e.shiftKey)
 const ctxClose=()=>{const c=$('#ctx');c&&c.remove();document.removeEventListener('mousedown',ctxOut,true);document.removeEventListener('keydown',ctxKey,true);removeEventListener('resize',ctxClose);removeEventListener('blur',ctxClose)};
 const ctxOut=e=>{if(!e.target.closest('#ctx'))ctxClose()},ctxKey=e=>{if(e.key==='Escape')ctxClose()};
 function ctxOpen(x,y,items){ctxClose();const c=el('div','ctx');c.id='ctx';
- items.forEach(it=>{if(it==='sep')return c.append(el('div','cs'));const[l,fn,o]=it,b=el('div','ci'+(o&&o.danger?' dg':''));b.append(el('span','',l));if(o&&o.ic)b.append(ic(o.ic,16));b.onclick=e=>{ctxClose();fn(e)};c.append(b)});
+ items.forEach(it=>{if(it==='sep')return c.append(el('div','cs'));if(it.node)return c.append(it.node);const[l,fn,o]=it,b=el('div','ci'+(o&&o.danger?' dg':''));{const sp=el('span','',l);if(o&&o.sub){sp.style.display='grid';sp.append(el('small','',o.sub))}b.append(sp)}if(o&&o.ic)b.append(ic(o.ic,16));b.onclick=e=>{ctxClose();fn(e)};c.append(b)});
  document.body.append(c);c.style.left=Math.max(8,Math.min(x,innerWidth-c.offsetWidth-8))+'px';c.style.top=Math.max(8,Math.min(y,innerHeight-c.offsetHeight-8))+'px';
  setTimeout(()=>{document.addEventListener('mousedown',ctxOut,true);document.addEventListener('keydown',ctxKey,true);addEventListener('resize',ctxClose);addEventListener('blur',ctxClose)},0)}
 function msgMenu(m,d,x,y,target){const it=[],sel=String(getSelection()||'').trim(),a=target&&target.closest&&target.closest('a');
@@ -189,7 +189,7 @@ function render(m,grp,isNew){
   b.append(h,body);d.append(a)}
  if(m.pinned){const pp=ic(IC.pin,12);pp.classList.add('pinned');pp.setAttribute('aria-label','Pinned');(grp?body:b.querySelector('.mh2')).append(pp)}
  b.append(rxBar(m));d.append(b,toolbar(m,d));
- d.oncontextmenu=e=>{if(e.target.closest('input,textarea,.eb'))return;e.preventDefault();msgMenu(m,d,e.clientX,e.clientY,e.target)};return d}
+ d.oncontextmenu=e=>{if(e.target.closest('input,textarea,.eb'))return;e.preventDefault();if(m.uid&&e.target.closest('.mh2 .nm,.mh2 .av,.av')&&!e.target.closest('.att,.rx'))return userMenu({id:m.uid,username:m.username},e.clientX,e.clientY);msgMenu(m,d,e.clientX,e.clientY,e.target)};return d}
 function replyRef(p){const r=el('div','rp');if(p.gone){r.append(el('i','','Original message was deleted'));return r}
  const n=el('span','nm',dn(p)),t=el('span','rt');nameFx(n,p,(THEMES[p.theme]||THEMES.midnight)[0]);t.append(rich(p.body.replace(/\s+/g,' ')));
  r.append(av(p.uid,p.username,p.theme),n,t);r.onclick=()=>jumpTo(p.id);return r}
