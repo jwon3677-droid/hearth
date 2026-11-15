@@ -13,3 +13,8 @@ async function uploadFile(file,input){if(!ch)return;if(file.size>MAXF)return toa
 function attachNode(m){if(!m.att_id)return null;const u='/api/att/'+m.att_id,w=el('div','att'),isImg=m.att_type&&m.att_type.startsWith('image/');
  if(isImg){const a=el('a');a.href=u;a.target='_blank';a.rel='noopener';const im=new Image();im.src=u;im.loading='lazy';im.alt=m.att_name;im.style.cssText='max-width:min(400px,100%);max-height:300px;border-radius:8px;display:block;margin-top:4px';a.append(im);w.append(a)}
  else{const a=el('a','',m.att_name+' · '+fmtSz(m.att_size||0));a.href=u;a.download=m.att_name;a.style.cssText='display:inline-block;margin-top:4px;padding:8px 12px;border-radius:8px;background:#2b2d31;color:#00a8fc;text-decoration:none';w.append(a)}return w}
+// In-app replacements for the browser's prompt()/confirm() popups
+function askDialog(title,sub,build,okText,danger){return new Promise(res=>{const D=dialog('420px');let done=false;const fin=v=>{if(done)return;done=true;res(v);D.close()},close0=D.close;D.close=()=>{close0();if(!done){done=true;res(null)}};
+ D.set(title,sub);const get=build(D,()=>ok.click());const ok=btn(okText||'OK',danger?'dng':'',()=>fin(get()));D.foot.append(btn('Cancel','lnk',()=>fin(null)),ok);return D})}
+function askText(title,sub,value,o={}){return askDialog(title,sub,(D,submit)=>{const i=el('input');i.value=value||'';if(o.max)i.maxLength=o.max;if(o.placeholder)i.placeholder=o.placeholder;i.onkeydown=e=>e.key==='Enter'&&submit();D.body.append(field(o.label||'',i));setTimeout(()=>{i.focus();i.select()},30);return()=>i.value},o.ok,o.danger)}
+function askConfirm(title,sub,o={}){return askDialog(title,sub,D=>{D.body.style.display='none';return()=>true},o.ok||'Confirm',o.danger).then(v=>!!v)}
