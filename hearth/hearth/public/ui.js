@@ -1,0 +1,266 @@
+// Hearth UI layer. Loaded last; defines the sidebar, dialogs, popouts, profiles, edit-profile and voice.
+// Uses globals from app.js / features.js (me, servers, friends, cur, ch, api, el, ic, IC, av, open, refresh, ...).
+const SLASH='M2.4 3.8 3.8 2.4 21.6 20.2 20.2 21.6z';
+Object.assign(IC,{
+ hp:'M12 3a9 9 0 0 0-9 9v7a2 2 0 0 0 2 2h2a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1H5v-1a7 7 0 0 1 14 0v1h-2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2a2 2 0 0 0 2-2v-7a9 9 0 0 0-9-9z',
+ hangup:'M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 0 1-.29-.7c0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28a11.27 11.27 0 0 0-2.67-1.85.996.996 0 0 1-.56-.9v-3.1A15.9 15.9 0 0 0 12 9z',
+ down:'M7 10l5 5 5-5z',right:'M10 6 8.6 7.4l4.6 4.6-4.6 4.6L10 18l6-6z',
+ addp:'M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+ out:'M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z',
+ home:'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
+ at:'M12 2a10 10 0 1 0 5 18.66l-1-1.73A8 8 0 1 1 20 12v1.5a1.5 1.5 0 0 1-3 0V12a5 5 0 1 0-1.46 3.54A3.5 3.5 0 0 0 22 13.5V12A10 10 0 0 0 12 2zm0 13a3 3 0 1 1 0-6 3 3 0 0 1 0 6z',
+ id:'M3 5v14h18V5H3zm7 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm4 8H6v-1c0-1.3 2.7-2 4-2s4 .7 4 2v1zm5-2h-4v-2h4v2zm0-3h-4V9h4v2z'});
+IC.micoff=IC.mic+SLASH;IC.hpoff=IC.hp+SLASH;
+
+const STAT={online:'Online',idle:'Idle',dnd:'Do Not Disturb',invisible:'Invisible'};
+const stc=s=>s==='online'?' on':s==='idle'?' idle':s==='dnd'?' dnd':'';
+const myPs=()=>me.status==='invisible'?'offline':(me.status||'online');
+const BDESC={staff:'Part of the Hearth staff team.',og:'One of the very first people here.',early:'Joined during early access.',verified:'A verified account.',supporter:'Helps keep Hearth running.'};
+const btn=(t,cls,fn)=>{const b=el('button','btn'+(cls?' '+cls:''),t);b.type='button';if(fn)b.onclick=fn;return b};
+const initials=n=>[...n.trim()][0].toUpperCase();
+const goHome=()=>{cur='home';open(null,'');members()};
+function goServer(id){const s=servers.find(x=>x.id===id);if(!s)return;cur=id;const f=s.channels.find(c=>c.kind==='text');open(f?'c'+f.id:null,f?'# '+f.name:'');members()}
+const memberSince=d=>new Date(d).toLocaleDateString([],{month:'long',day:'numeric',year:'numeric'});
+
+// ---------- toasts ----------
+function toast(m,ok){let h=$('#toasts');if(!h){h=el('div');h.id='toasts';document.body.append(h)}const t=el('div','toast'+(ok?' ok':''),m);h.append(t);setTimeout(()=>t.remove(),4200)}
+
+// ---------- dialogs ----------
+function dialog(width){const ov=el('div','ov'),box=el('div','dg'),h=el('div','dg-h'),b=el('div','dg-b'),f=el('div','dg-f'),x=ib(IC.x,'Close',()=>D.close(),20);
+ x.classList.add('dg-x');if(width)box.style.width=width;
+ const esc=e=>{if(e.key==='Escape'&&ov===[...document.querySelectorAll('.ov')].pop())D.close()};
+ const D={ov,box,body:b,foot:f,set(t,s){h.replaceChildren(el('h2','',t));if(s)h.append(el('p','',s));b.replaceChildren();f.replaceChildren();f.style.display=''},close(){ov.remove();removeEventListener('keydown',esc)}};
+ addEventListener('keydown',esc);ov.onmousedown=e=>{if(e.target===ov)D.close()};box.append(x,h,b,f);ov.append(box);document.body.append(ov);return D}
+function field(label,input,hint){const w=el('div','fld'),l=el('label','',label),e=el('div','er');w.append(l,input);if(hint)w.append(el('small','mu',hint));w.append(e);w.err=m=>{e.textContent=m||''};return w}
+const opt=(icon,title,sub,fn)=>{const r=el('button','opt'),i=el('span','oi'),t=el('span','ot');r.type='button';i.append(ic(icon,22));t.append(el('b','',title));if(sub)t.append(el('small','',sub));r.append(i,t,ic(IC.right,18));r.onclick=fn;return r};
+
+function addServerDialog(){const D=dialog();
+ const start=()=>{D.set('Create a server','Your server is where you and your friends hang out. Make yours and start talking.');
+  const j=btn('Join a Server','sec wide',joinStep);D.body.append(opt(IC.home,'Create My Own','Start fresh with a text and a voice channel',create),el('div','dsep','Have an invite already?'),j);D.foot.style.display='none'};
+ const create=()=>{D.set('Customize your server','Give your new server a name. You can always invite people after.');
+  const i=el('input');i.value=(me.username+"'s server").slice(0,30);i.maxLength=30;const f=field('Server name',i);D.body.append(f);
+  const go=btn('Create','',async()=>{go.disabled=true;f.err();try{const r=await api('servers','POST',{name:i.value});await refresh();D.close();goServer(r.id)}catch(e){f.err(e.message);go.disabled=false}});
+  i.onkeydown=e=>e.key==='Enter'&&go.click();D.foot.append(btn('Back','lnk',start),go);i.focus();i.select()};
+ const joinStep=()=>{D.set('Join a server','Enter an invite code below to join an existing server.');
+  const i=el('input');i.placeholder='e.g. 4f9a1c2b7d';const f=field('Invite code',i);D.body.append(f);
+  const go=btn('Join Server','',async()=>{const code=i.value.trim().split('/').pop();if(!code)return f.err('Enter an invite code');go.disabled=true;f.err();
+   try{const r=await api('join','POST',{code});await refresh();D.close();goServer(r.id)}catch(e){f.err(e.message);go.disabled=false}});
+  i.onkeydown=e=>e.key==='Enter'&&go.click();D.foot.append(btn('Back','lnk',start),go);i.focus()};
+ start()}
+
+function channelDialog(s,kind='text'){const D=dialog();D.set('Create channel','in '+s.name);let k=kind;
+ const rows=el('div','radios'),mk=(key,icon,t,sub)=>{const r=el('button','opt rad'+(k===key?' on':''));r.type='button';const i=el('span','oi'),x=el('span','ot');i.append(ic(icon,22));x.append(el('b','',t),el('small','',sub));
+  const dot=el('span','rdot');r.append(i,x,dot);r.onclick=()=>{k=key;[...rows.children].forEach(c=>c.classList.toggle('on',c===r))};rows.append(r)};
+ mk('text',IC.hash,'Text','Send messages, emoji and reactions');mk('voice',IC.spk,'Voice','Hang out together with voice');
+ const i=el('input');i.placeholder='new-channel';i.maxLength=20;const f=field('Channel name',i);D.body.append(rows,f);
+ const go=btn('Create Channel','',async()=>{go.disabled=true;f.err();try{await api('channels','POST',{server_id:s.id,name:i.value.trim().replace(/\s+/g,'-'),kind:k});await refresh();D.close()}catch(e){f.err(e.message);go.disabled=false}});
+ i.onkeydown=e=>e.key==='Enter'&&go.click();D.foot.append(btn('Cancel','lnk',D.close),go);i.focus()}
+
+function inviteDialog(s){const D=dialog();D.set('Invite friends to '+s.name,'Share this code. Friends can paste it under Add a Server → Join a Server.');
+ const i=el('input'),row=el('div','copyrow'),b=btn('Copy','',()=>{copyTxt(s.invite);b.textContent='Copied';b.classList.add('ok');setTimeout(()=>{b.textContent='Copy';b.classList.remove('ok')},1800)});
+ i.value=s.invite;i.readOnly=true;i.onfocus=()=>i.select();row.append(i,b);D.body.append(field('Server invite code',row));D.foot.style.display='none'}
+
+function addFriendDialog(){const D=dialog();D.set('Add friend','You can add friends with their Hearth username.');
+ const i=el('input');i.placeholder='Enter a username';const f=field('Username',i),ok=el('div','okm');D.body.append(f,ok);
+ const go=btn('Send Friend Request','',async()=>{const n=i.value.trim();if(!n)return;go.disabled=true;f.err();ok.textContent='';
+  try{await api('friends','POST',{username:n});ok.textContent='Success! Your friend request to '+n+' was sent.';i.value='';await refresh()}catch(e){f.err(e.message)}go.disabled=false});
+ i.onkeydown=e=>e.key==='Enter'&&go.click();D.foot.append(btn('Close','lnk',D.close),go);i.focus()}
+
+function serverMenu(s,anchor){const r=anchor.getBoundingClientRect(),it=[['Invite People',()=>inviteDialog(s),{ic:IC.addp}]];
+ if(s.owner_id===me.id)it.push(['Create Channel',()=>channelDialog(s),{ic:IC.plus}]);
+ if(s.owner_id!==me.id)it.push('sep',['Leave Server',()=>leaveDialog(s),{danger:1,ic:IC.out}]);
+ ctxOpen(r.left+8,r.bottom+2,it)}
+function leaveDialog(s){const D=dialog();D.set('Leave '+s.name,'Are you sure you want to leave? You\'ll need a new invite code to rejoin.');D.body.style.display='none';
+ const go=btn('Leave Server','dng',async()=>{go.disabled=true;try{if(room&&room.server_id===s.id)vleave();await api('servers/'+s.id+'/leave','DELETE');D.close();await refresh();if(cur===s.id)goHome()}catch(e){go.disabled=false;fail(e)}});
+ D.foot.append(btn('Cancel','lnk',D.close),go)}
+
+// ---------- popouts ----------
+let popEl=null;
+function popClose(){if(popEl){popEl.remove();popEl=null;document.removeEventListener('mousedown',popOut,true);document.removeEventListener('keydown',popKey,true)}}
+const popOut=e=>{if(popEl&&!popEl.contains(e.target)&&!e.target.closest('#ctx,.ov'))popClose()},popKey=e=>{if(e.key==='Escape')popClose()};
+function popout(rect,mode,node){popClose();const p=el('div','po');p.append(node);document.body.append(p);popEl=p;const w=p.offsetWidth,h=p.offsetHeight;let x,y;
+ if(mode==='top'){x=rect.left;p.style.bottom=Math.max(8,innerHeight-rect.top+8)+'px'}
+ else{x=rect.right+8;if(x+w>innerWidth-8)x=rect.left-w-8;y=Math.max(8,Math.min(rect.top,innerHeight-h-8));p.style.top=y+'px'}
+ p.style.left=Math.max(8,Math.min(x,innerWidth-w-8))+'px';
+ setTimeout(()=>{document.addEventListener('mousedown',popOut,true);document.addEventListener('keydown',popKey,true)},0);return p}
+
+// ---------- profile card (popout, full profile and the edit-profile preview all share this) ----------
+const sdot=s=>el('i','sd '+(s||'offline'));
+function pcard(u,o={}){const t=THEMES[u.theme]||THEMES.midnight,c=el('div','pcd'+(o.big?' big':'')),bh=o.big?(u.hb?140:96):(u.hb?105:60),bn=el('div','pbn'),pav=el('div','pav'),w=el('div','st'+stc(u.ps));
+ c.style.setProperty('--bh',bh+'px');bn.style.height=bh+'px';bn.style.background=u.hb?`url(/api/banner/${u.id}?v=${AV}) center/cover`:`linear-gradient(135deg,${t[0]},${t[1]})`;
+ w.append(av(u.id,u.username,u.theme));pav.append(w);c.append(bn,pav);
+ if(u.cstatus){const b=el('div','sbub');b.append(rich(u.cstatus));c.append(b)}
+ const body=el('div','pbody'),nm=el('div','pnm'),nn=el('span','',u.username);nameFx(nn,u,'#f2f3f5');nm.append(nn);body.append(nm);
+ if((u.badges||[]).length){const bs=el('div','pbs');u.badges.forEach(k=>BADGES[k]&&bs.append(badge(k)));body.append(bs)}
+ const box=el('div','pbox');
+ if(u.bio||o.big){box.append(el('h4','','About Me'));const b=el('div','pbio');b.append(rich(u.bio||'This user hasn\'t written a bio yet.'));if(!u.bio)b.classList.add('mu');box.append(b)}
+ box.append(el('h4','','Member Since'),el('div','pms',u.created?memberSince(u.created):'—'));body.append(box);c.append(body);return c}
+
+function profActions(u,box,o={}){const add=(t,cls,fn)=>{const b=btn(t,cls,fn);box.append(b);return b},done=()=>o.reload?o.reload():(popClose(),refresh());
+ if(u.id===me.id){add('Edit Profile','',()=>{popClose();closeFull();settings()});if(o.pop)add('View Full Profile','g',()=>{popClose();fullProfile(u.id)});return}
+ const f=u.friend;
+ if(f&&f.status==='ok')add('Message','',()=>{popClose();closeFull();cur='home';open(dmKey(u.id),'@ '+u.username);members()});
+ else if(!f)add('Add Friend','',()=>api('friends','POST',{username:u.username}).then(()=>{toast('Friend request sent to '+u.username,1);done()}).catch(fail));
+ else if(f.by!==me.id)add('Accept Request','',()=>api('friends/accept','POST',{id:u.id}).then(done).catch(fail));
+ else add('Request Sent','g').disabled=true;
+ if(o.pop)add('View Full Profile','g',()=>{popClose();fullProfile(u.id)});
+ else if(f)add(f.status==='ok'?'Remove Friend':'Cancel Request','g',()=>api('friends/'+u.id,'DELETE').then(done).catch(fail))}
+
+async function profile(id,ev){const src=ev&&ev.currentTarget,rect=src&&src.getBoundingClientRect?src.getBoundingClientRect():null;let u;
+ try{u=await api('user/'+id)}catch(e){return fail(e)}
+ if(!rect)return fullProfile(id,u);
+ const card=pcard(u),act=el('div','pact');profActions(u,act,{pop:true});card.append(act);popout(rect,'side',card)}
+
+let fullKey=null;
+function closeFull(){const o=$('.fpov');if(o)o.remove();if(fullKey){removeEventListener('keydown',fullKey);fullKey=null}}
+async function fullProfile(id,u){try{u=u||await api('user/'+id)}catch(e){return fail(e)}
+ let mu={servers:[],friends:[]};try{mu=await api('user/'+id+'/mutual')}catch{}
+ closeFull();popClose();const ov=el('div','ov fpov'),box=el('div','fp'),L=el('div','fpl'),R=el('div','fpr'),x=ib(IC.x,'Close',closeFull,20),own=id===me.id;x.classList.add('dg-x');
+ const card=pcard(u,{big:true}),act=el('div','pact');profActions(u,act,{reload:()=>fullProfile(id)});card.append(act);L.append(card);
+ const tabs=el('div','fpt'),list=el('div','fpb'),T=[[own?'Your Servers':'Mutual Servers',mu.servers],[own?'Your Friends':'Mutual Friends',mu.friends]];
+ const show=k=>{[...tabs.children].forEach((b,j)=>b.classList.toggle('on',j===k));list.replaceChildren();const a=T[k][1];
+  if(!a.length){list.append(el('div','fpe',k?(own?'You haven\'t added any friends yet.':'No friends in common.'):(own?'You haven\'t joined any servers.':'No servers in common.')));return}
+  a.forEach(i=>{const r=el('div','fpr2');if(k){const w=el('div','st');w.append(av(i.id,i.username,i.theme));r.append(w,el('span','',i.username));r.onclick=()=>fullProfile(i.id)}
+   else{const g=el('div','sic',initials(i.name));r.append(g,el('span','',i.name));r.onclick=()=>{closeFull();goServer(i.id)}}list.append(r)})};
+ T.forEach(([n,a],k)=>{const b=el('button','fpt1');b.type='button';b.append(n,el('span','cnt',String(a.length)));b.onclick=()=>show(k);tabs.append(b)});show(0);
+ R.append(tabs,list);box.append(L,R,x);ov.append(box);ov.onmousedown=e=>{if(e.target===ov)closeFull()};document.body.append(ov);
+ fullKey=e=>{if(e.key==='Escape'&&ov===[...document.querySelectorAll('.ov')].pop())closeFull()};addEventListener('keydown',fullKey)}
+
+// ---------- your own menu (click yourself, bottom left) ----------
+async function selfPop(anchor){let u;try{u=await api('user/'+me.id)}catch(e){return fail(e)}const rect=anchor.getBoundingClientRect();
+ const wrap=el('div'),menu=el('div','pmenu'),card=pcard({...u,ps:myPs()});wrap.append(card,menu);
+ const row=(icon,label,fn,o={})=>{const r=el('div','pmi'+(o.dng?' dng':'')),l=el('span','pml');if(typeof icon==='string')r.append(ic(icon,18));else r.append(icon);l.append(label);r.append(l);if(o.chev){const c=ic(IC.right,16);c.classList.add('pch');r.append(c)}r.onclick=fn;return r};
+ const setS=(s,t)=>api('status','PUT',{status:s,text:t}).then(()=>{me.status=s;me.cstatus=t;popClose();draw()}).catch(fail);
+ // status picker
+ const sr=row(sdot(me.status||'online'),STAT[me.status||'online'],()=>{sl.classList.toggle('open');sr.classList.toggle('open')},{chev:1}),sl=el('div','psub');
+ Object.entries(STAT).forEach(([k,n])=>{const r=row(sdot(k),n,()=>setS(k,me.cstatus||''));r.classList.add('so');if(k===(me.status||'online'))r.classList.add('cur');sl.append(r)});
+ // custom status
+ const cr=row(IC.smile,me.cstatus?'Edit Custom Status':'Set Custom Status',()=>{cs.classList.toggle('open');cs.querySelector('input').focus()}),cs=el('div','psub cstat'),inp=el('input'),sv=btn('Save','sm',()=>setS(me.status||'online',inp.value.trim())),cl=btn('Clear','g sm',()=>setS(me.status||'online',''));
+ inp.maxLength=60;inp.value=me.cstatus||'';inp.placeholder='What\'s on your mind?';inp.onkeydown=e=>e.key==='Enter'&&sv.click();cs.append(inp,sv,cl);
+ menu.append(row(IC.edit,'Edit Profile',()=>{popClose();settings()}),el('div','psep'),sr,sl,cr,cs,el('div','psep'),
+  row(IC.shield,'Badges',()=>{popClose();badgesDialog()}),...(isStaff()?[row(IC.users,'Staff Panel',()=>{popClose();staffPanel()})]:[]),row(IC.id,'Copy User ID',()=>{copyTxt(String(me.id));toast('User ID copied',1);popClose()}),el('div','psep'),
+  row(IC.out,'Log Out',()=>{popClose();logout()},{dng:1}));
+ popout(rect,'top',wrap)}
+function badgesDialog(){const D=dialog();D.set('Your badges');D.foot.style.display='none';const l=el('div','blist');
+ if(!(me.badges||[]).length)l.append(el('div','fpe','You don\'t have any badges yet.'));
+ (me.badges||[]).forEach(k=>{if(!BADGES[k])return;const r=el('div','bl');r.append(badge(k),el('span','mu',BDESC[k]||''));l.append(r)});D.body.append(l)}
+async function logout(){await api('logout','POST').catch(()=>{});const x=ws;me=null;vcleanup();vrooms={};x&&x.close();popClose();closeFull();const e=$('.ep');e&&e.remove();authView()}
+
+// ---------- edit profile (full screen, live preview) ----------
+function settings(){return editProfile()}
+async function editProfile(){let u;try{u=await api('user/'+me.id)}catch(e){return fail(e)}popClose();const old=$('.ep');old&&old.remove();
+ const d={bio:u.bio||'',theme:me.theme},orig={...d},dirty=()=>d.bio!==orig.bio||d.theme!==orig.theme;
+ const ov=el('div','ep'),L=el('div','epl'),R=el('div','epr'),prev=el('div','epp'),bar=el('div','ubar'),x=ib(IC.x,'Close (Esc)',()=>tryClose(),22);x.classList.add('epx');
+ const tile=(t,...kids)=>{const w=el('section','tile'),c=el('div','tilec');c.append(...kids);w.append(el('h3','',t),c);return w};
+ // avatar
+ const ap=el('div','tav'),apaint=()=>{ap.replaceChildren(av(me.id,me.username,d.theme))};
+ const rowA=el('div','trow');rowA.append(ap,btn('Change Avatar','',()=>pickImg('avatar')),btn('Remove','g',async()=>{try{await api('avatar','DELETE');AV=Date.now();draw();load();members();apaint();paint()}catch(e){fail(e)}}));
+ // name style
+ const ns=el('button','nsb'),nspaint=()=>{ns.replaceChildren();const n=el('span','',me.username);nameFx(n,me,'#f2f3f5');ns.append(n,ic(IC.right,18))};ns.type='button';ns.onclick=nameStyleModal;
+ // theme + banner
+ const th=el('div','tsw'),tpaint=()=>{th.replaceChildren();Object.entries(THEMES).forEach(([k,t])=>{const s=el('button','th'+(d.theme===k?' on':''));s.type='button';s.style.background=`linear-gradient(135deg,${t[0]},${t[1]})`;s.title=k[0].toUpperCase()+k.slice(1);s.onclick=()=>{d.theme=k;tpaint();apaint();paint()};th.append(s)})};
+ const rowB=el('div','trow');rowB.append(btn('Change Banner','',()=>pickImg('banner')),btn('Remove','g',async()=>{try{await api('banner','DELETE');u.hb=false;AV=Date.now();paint();load();members()}catch(e){fail(e)}}));
+ // bio
+ const ta=el('textarea'),cnt=el('div','cnt2');ta.value=d.bio;ta.maxLength=190;ta.placeholder='Tell people a little about yourself';ta.rows=4;
+ ta.oninput=()=>{d.bio=ta.value;cnt.textContent=(190-d.bio.length)+' characters left';paint()};cnt.textContent=(190-d.bio.length)+' characters left';
+ L.append(el('div','eph','Main Profile'),tile('Avatar',rowA),tile('Display Name Style',ns),tile('Theme & Banner',th,rowB),tile('About Me',ta,cnt));
+ const lo=btn('Log Out','g wide',logout);L.append(lo);
+ // preview + save bar
+ const rs=btn('Reset','lnk',()=>{Object.assign(d,orig);ta.value=d.bio;ta.oninput();tpaint();apaint();paint()}),sv=btn('Save Changes','ok',async()=>{sv.disabled=true;
+  try{if(d.bio!==orig.bio)await api('bio','PUT',{bio:d.bio});if(d.theme!==orig.theme){await api('profile','PUT',{theme:d.theme});me.theme=d.theme;theme()}Object.assign(orig,d);draw();members();load().catch(()=>{});paint();toast('Profile saved',1)}catch(e){fail(e)}sv.disabled=false});
+ bar.append(el('span','','Careful — you have unsaved changes!'),el('span','grow'),rs,sv);
+ const paint=()=>{prev.replaceChildren(el('div','eplabel','Preview'),pcard({id:me.id,username:me.username,bio:d.bio,theme:d.theme,badges:me.badges,created:u.created,hb:u.hb,nfont:me.nfont,neffect:me.neffect,ncolor:me.ncolor,ncolor2:me.ncolor2,ps:myPs(),cstatus:me.cstatus},{big:true}));
+  R.style.setProperty('--g',(THEMES[d.theme]||THEMES.midnight)[0]);bar.classList.toggle('show',dirty())};
+ const key=e=>{if(e.key==='Escape'&&!$('.nsw')&&!$('.ov')&&!popEl)tryClose()},kill=()=>{ov.remove();removeEventListener('keydown',key);window.onImg=window.onNameStyle=null};
+ const tryClose=()=>{if(dirty()){bar.classList.remove('shake');void bar.offsetWidth;bar.classList.add('shake');return}kill()};
+ window.onImg=k=>{if(k==='banner')u.hb=true;apaint();paint()};window.onNameStyle=()=>{nspaint();paint()};
+ R.append(prev,bar);ov.append(L,R,x);document.body.append(ov);addEventListener('keydown',key);apaint();nspaint();tpaint();paint()}
+
+// ---------- staff panel ----------
+async function staffPanel(){const D=dialog('720px');D.box.classList.add('wide');
+ const render=async()=>{let us;try{us=await api('staff/users')}catch(e){D.close();return fail(e)}D.set('Staff panel','Manage badges, roles and bans.');D.foot.style.display='none';
+  us.forEach(u=>{const r=el('div','srow'),n=el('div','sn'),act=el('div','sa');n.append(el('b','',u.username),el('small','mu',(u.role!=='user'?u.role:'member')+(u.banned?' · banned':'')));
+   const go=(p,b)=>async()=>{try{await api(p,'POST',b);render()}catch(e){fail(e)}};
+   if(u.role==='user')act.append(btn(u.banned?'Unban':'Ban',u.banned?'g sm':'dng sm',go('staff/ban',{id:u.id,banned:!u.banned})));
+   if(me.role==='admin'&&u.role!=='admin')act.append(btn(u.role==='staff'?'Demote':'Make staff','g sm',go('staff/role',{id:u.id,role:u.role==='staff'?'user':'staff'})));
+   Object.keys(BADGES).forEach(k=>{const has=u.badges.includes(k),b=btn((has?'− ':'+ ')+k,'g sm'+(has?' on':''),go('staff/badge',{id:u.id,badge:k,on:!has}));act.append(b)});r.append(n,act);D.body.append(r)})};
+ render()}
+
+// ---------- members list ----------
+async function members(){const p=$('#mem');if(!p)return;const sid=cur,tok=++memTok;if(sid==='home'){p.replaceChildren();return}
+ const l=await api('members/'+sid).catch(()=>null);if(!l||tok!==memTok)return;memCache=l;const seen=new Set(),f=document.createDocumentFragment();
+ [['Staff',u=>['admin','staff'].includes(u.role)],['Online',u=>u.online],['Offline',()=>true]].forEach(([n,fn])=>{const us=l.filter(u=>!seen.has(u.id)&&fn(u));us.forEach(u=>seen.add(u.id));if(!us.length)return;f.append(el('div','mh',n+' — '+us.length));
+  us.forEach(u=>{const r=el('div','mr'+(u.online?'':' off')),w=el('div','st'+stc(u.ps)),t=THEMES[u.theme]||THEMES.midnight,nm=el('span','nm',u.username),tx=el('div','mtx');
+   (u.online||u.ncolor||(u.neffect&&u.neffect!=='solid'))&&nameFx(nm,u,t[0]);w.append(av(u.id,u.username,u.theme));const top=el('div','mtop');top.append(nm);(u.badges||[]).slice(0,1).forEach(k=>BADGES[k]&&top.append(badge(k)));tx.append(top);
+   if(u.cstatus&&u.online){const s=el('div','mst');s.append(rich(u.cstatus));tx.append(s)}
+   r.append(w,tx);r.onclick=e=>profile(u.id,e);f.append(r)})});
+ p.replaceChildren(f)}
+const pollFriends=()=>api('friends').then(f=>{friends=f;if(cur==='home')draw()}).catch(()=>{});
+
+// ---------- sidebar ----------
+let hideV=false;try{hideV=localStorage.getItem('hvc')==='1'}catch{}
+const fmtT=ms=>{const s=Math.max(0,Math.floor(ms/1e3)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60,p=n=>String(n).padStart(2,'0');return h?`${h}:${p(m)}:${p(x)}`:`${p(m)}:${p(x)}`};
+function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)return;const sc=side.querySelector('.sbody'),top=sc?sc.scrollTop:0;rail.replaceChildren();side.replaceChildren();
+ const rb=(c,tt,on,fn,cls)=>{const b=el('div','rb'+(on?' on':'')+(cls?' '+cls:''));typeof c==='string'?b.textContent=c:b.append(c);b.title=tt;b.onclick=fn;rail.append(b);return b},home=new Image();home.src=MURI;
+ railBadge(rb(home,'Home & DMs',cur==='home',goHome),friends.filter(f=>f.status==='ok').map(f=>dmKey(f.id)));rail.append(el('div','sep'));
+ servers.forEach(s=>railBadge(rb(initials(s.name),s.name,cur===s.id,()=>goServer(s.id)),s.channels.map(c=>'c'+c.id)));
+ rb(ic(IC.plus,22),'Add a Server',false,addServerDialog,'add');
+ $('#app').classList.toggle('nomem',cur==='home'||!showMem);
+ const hdr=el('div','sh'),body=el('div','sbody');
+ if(cur==='home'){hdr.classList.add('plain');hdr.append(el('span','','Home'));
+  const af=el('div','ch');af.append(ic(IC.addp,20),el('span','','Add Friend'));af.onclick=addFriendDialog;body.append(af);
+  const pend=friends.filter(f=>f.status==='pending');
+  if(pend.length){body.append(el('div','cat','Pending — '+pend.length));pend.forEach(f=>{const r=el('div','ch'),w=el('div','st');w.append(av(f.id,f.username,f.theme));r.append(w,el('span','',f.username+(f.by===me.id?' · sent':' · wants to add you')));
+   if(f.by!==me.id)r.append(ib(IC.check,'Accept',()=>api('friends/accept','POST',{id:f.id}).then(refresh).catch(fail),18));r.append(ib(IC.x,f.by===me.id?'Cancel':'Decline',()=>api('friends/'+f.id,'DELETE').then(refresh).catch(fail),18));r.onclick=e=>profile(f.id,e);body.append(r)})}
+  const c=el('div','cat');c.append(el('span','','Direct Messages'),ib(IC.plus,'Add Friend',addFriendDialog,16));body.append(c);
+  const dms=friends.filter(f=>f.status==='ok');if(!dms.length)body.append(el('div','sempty','No conversations yet. Add a friend to start one.'));
+  dms.forEach(f=>{const k=dmKey(f.id),r=el('div','ch'+(ch===k?' on':'')+(unread[k]?' unr':'')),w=el('div','st'+stc(f.ps));w.append(av(f.id,f.username,f.theme));r.append(w,el('span','',f.username));pingBadge(r,k);r.onclick=()=>open(k,'@ '+f.username);body.append(r)})}
+ else{const s=servers.find(x=>x.id===cur);if(s){hdr.append(el('span','',s.name),ic(IC.down,18));hdr.onclick=()=>serverMenu(s,hdr);const own=s.owner_id===me.id;let hasV=false;
+  [['text','Text Channels',IC.hash],['voice','Voice Channels',IC.spk]].forEach(([k,n,i])=>{const cs=s.channels.filter(c=>c.kind===k);if(k==='voice')hasV=cs.length>0;if(!cs.length||(k==='voice'&&hideV))return;
+   const c=el('div','cat');c.append(el('span','',n));own&&c.append(ib(IC.plus,'Create Channel',()=>channelDialog(s,k),16));body.append(c);
+   cs.forEach(c=>{if(k==='text'){const r=el('div','ch'+(ch==='c'+c.id?' on':'')+(unread['c'+c.id]?' unr':''));r.append(ic(i,20),el('span','',c.name));pingBadge(r,'c'+c.id);r.onclick=()=>open('c'+c.id,'# '+c.name);body.append(r);return}
+    const live=vrooms['c'+c.id],mine=room&&room.id===c.id,r=el('div','ch vch'+(live?' live':'')+(mine?' on':''));r.append(ic(i,20),el('span','',c.name));
+    if(live){const t=el('span','vt',fmtT(Date.now()-live.since));t.dataset.s=live.since;r.append(t)}r.onclick=()=>vjoin(c);body.append(r);
+    if(live)live.peers.forEach(p=>{const row=el('div','vp'+(speaking.has(p.id)?' speak':'')),nm=el('span','nmv',p.name);row.dataset.uid=p.id;
+     const th=(memCache.find(m=>m.id===p.id)||{}).theme||(p.id===me.id?me.theme:'midnight');row.append(av(p.id,p.name,th),nm);
+     if(p.deaf)row.append(vicon(IC.hpoff));else if(p.muted)row.append(vicon(IC.micoff));
+     row.onclick=e=>profile(p.id,e);body.append(row)})})});
+  if(hasV){const hb=el('button','hvc');hb.type='button';hb.append(ic(IC.spk,18),el('span','',hideV?'Show Voice Channels':'Hide Voice Channels'));hb.onclick=()=>{hideV=!hideV;try{localStorage.setItem('hvc',hideV?'1':'0')}catch{}draw()};body.append(hb)}}}
+ side.append(hdr,body);body.scrollTop=top;
+ if(room){const v=el('div','vcp'),t=el('div','t'),srv=servers.find(x=>x.id===room.server_id);t.append(el('b','','Voice Connected'),el('small','',room.name+(srv?' / '+srv.name:'')));v.append(ic(IC.spk,20),t,ib(IC.hangup,'Disconnect',vleave,20));v.firstChild.classList.add('vcg');side.append(v)}
+ const p=el('div'),mi=el('div','mi'),w=el('div','st'+stc(myPs())),nb=el('div','mn'),nn=el('b','',me.username),off=selfMute||selfDeaf;p.id='me';w.append(av(me.id,me.username,me.theme));nameFx(nn,me,'#f2f3f5');
+ nb.append(nn,el('small','',room?'In voice':(me.cstatus||STAT[me.status||'online'])));mi.append(w,nb);mi.onclick=()=>selfPop(p);p.append(mi);
+ const mb=ib(off?IC.micoff:IC.mic,selfMute?'Unmute':'Mute',toggleMute,20),db=ib(selfDeaf?IC.hpoff:IC.hp,selfDeaf?'Undeafen':'Deafen',toggleDeaf,20);if(off)mb.classList.add('bad');if(selfDeaf)db.classList.add('bad');
+ p.append(mb,db,ib(IC.gear,'User settings',settings,20));side.append(p)}
+const vicon=d=>{const s=el('span','vi');s.append(ic(d,16));return s};
+setInterval(()=>document.querySelectorAll('.vt[data-s]').forEach(n=>n.textContent=fmtT(Date.now()-n.dataset.s)),1000);
+
+// ---------- voice (WebRTC mesh; signalling and room state over the WebSocket) ----------
+let vrooms={},selfMute=false,selfDeaf=false,speaking=new Set(),actx=null;const mon={};
+const sig=(to,data)=>ws.send(JSON.stringify({type:'sig',to,data}));
+function watch(id,s){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const an=actx.createAnalyser();an.fftSize=512;actx.createMediaStreamSource(s).connect(an);mon[id]={an,buf:new Uint8Array(an.fftSize)}}catch{}}
+setInterval(()=>{if(!Object.keys(mon).length&&!speaking.size)return;const now=new Set();
+ for(const id in mon){const m=mon[id];m.an.getByteTimeDomainData(m.buf);let x=0;for(const v of m.buf){const t=(v-128)/128;x+=t*t}if(Math.sqrt(x/m.buf.length)>.035&&!(+id===me.id&&(selfMute||selfDeaf)))now.add(+id)}
+ if(now.size===speaking.size&&[...now].every(i=>speaking.has(i)))return;speaking=now;document.querySelectorAll('.vp').forEach(n=>n.classList.toggle('speak',now.has(+n.dataset.uid)))},120);
+function peer(id){if(pcs[id])return pcs[id].pc;const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]}),a=new Audio();a.autoplay=true;a.muted=selfDeaf;document.body.append(a);pcs[id]={pc,a};
+ stream.getTracks().forEach(t=>pc.addTrack(t,stream));pc.ontrack=e=>{a.srcObject=e.streams[0];watch(id,e.streams[0])};pc.onicecandidate=e=>e.candidate&&sig(id,{ice:e.candidate});return pc}
+function vclose(id){delete mon[id];if(!pcs[id])return;pcs[id].pc.close();pcs[id].a.remove();delete pcs[id];delete names[id]}
+function vcleanup(){Object.keys(pcs).forEach(vclose);delete mon[me&&me.id];stream&&stream.getTracks().forEach(t=>t.stop());stream=null;room=null;names={};speaking=new Set()}
+function applyAudio(){if(stream)stream.getAudioTracks().forEach(t=>t.enabled=!(selfMute||selfDeaf));Object.values(pcs).forEach(p=>p.a.muted=selfDeaf);
+ if(ws&&ws.readyState===1&&room)ws.send(JSON.stringify({type:'vstate',muted:selfMute||selfDeaf,deaf:selfDeaf}))}
+function toggleMute(){if(selfDeaf){selfDeaf=false;selfMute=false}else selfMute=!selfMute;applyAudio();draw()}
+function toggleDeaf(){selfDeaf=!selfDeaf;applyAudio();draw()}
+async function vjoin(c){if(room&&room.id===c.id)return;if(room)vleave();
+ try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch{return toast('Hearth needs microphone access to join voice. Check your browser\'s site permissions.')}
+ room=c;names={};ws.send(JSON.stringify({type:'vjoin',ch:'c'+c.id,muted:selfMute||selfDeaf,deaf:selfDeaf}));watch(me.id,stream);applyAudio();draw()}
+function vleave(){ws.send(JSON.stringify({type:'vleave'}));vcleanup();draw()}
+function onSig(d){chain=chain.then(async()=>{if(!stream)return;const pc=peer(d.from),x=d.data;
+ if(x.sdp){await pc.setRemoteDescription(x.sdp);if(x.sdp.type==='offer'){await pc.setLocalDescription(await pc.createAnswer());sig(d.from,{sdp:pc.localDescription})}}else if(x.ice)await pc.addIceCandidate(x.ice)}).catch(()=>{})}
+function connect(){ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
+ ws.onmessage=async e=>{const d=JSON.parse(e.data);if(d.type==='presence'){clearTimeout(window.pt);window.pt=setTimeout(()=>{members();pollFriends()},400)}
+  if(d.type==='msg')onMsg(d.m);if(['edit','react','pin','typing'].includes(d.type))onEvt(d);
+  if(d.type==='del')onDel(d.id);
+  if(d.type==='vroom'){if(d.peers.length)vrooms[d.ch]={peers:d.peers,since:Date.now()-d.dur};else delete vrooms[d.ch];draw()}
+  if(d.type==='vpeers'&&room)for(const p of d.peers){names[p.id]=p.name;const pc=peer(p.id);await pc.setLocalDescription(await pc.createOffer());sig(p.id,{sdp:pc.localDescription})}
+  if(d.type==='vin'&&room)names[d.id]=d.name;if(d.type==='vout')vclose(d.id);if(d.type==='sig')onSig(d)};
+ ws.onclose=()=>{if(me){vcleanup();vrooms={};setTimeout(connect,2000)}}}
