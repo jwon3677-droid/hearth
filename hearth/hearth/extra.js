@@ -31,9 +31,17 @@ module.exports=({app,q,need,err,bad,wss})=>{
  app.post('/api/friends/accept',need,async(req,res)=>{const o=+req.body.id;await q("update friends set status='ok' where a=$1 and b=$2 and by<>$3",[Math.min(o,req.u.id),Math.max(o,req.u.id),req.u.id]);res.json({})});
  app.delete('/api/friends/:id',need,async(req,res)=>{const o=+req.params.id;await q('delete from friends where a=$1 and b=$2',[Math.min(o,req.u.id),Math.max(o,req.u.id)]);res.json({})});
  // avatars: client re-encodes to 128px JPEG; server verifies magic bytes + size, serves with fixed type
- const mime=b=>b[0]===0xff&&b[1]===0xd8?'image/jpeg':b.slice(1,4).toString()==='PNG'?'image/png':b.slice(0,4).toString()==='RIFF'&&b.slice(8,12).toString()==='WEBP'?'image/webp':null;
- app.put('/api/avatar',need,async(req,res)=>{const b=Buffer.from(String(req.body.data||''),'base64');if(b.length<100||b.length>150000||!mime(b))return err(res,'Use a PNG/JPEG/WebP under 150KB');
+ const mime=b=>b.slice(0,4).toString()==='GIF8'?'image/gif':b[0]===0xff&&b[1]===0xd8?'image/jpeg':b.slice(1,4).toString()==='PNG'?'image/png':b.slice(0,4).toString()==='RIFF'&&b.slice(8,12).toString()==='WEBP'?'image/webp':null;
+ app.put('/api/avatar',need,async(req,res)=>{const b=Buffer.from(String(req.body.data||''),'base64');if(b.length<100||b.length>300000||!mime(b))return err(res,'Use a PNG/JPEG/WebP/GIF under 300KB');
   await q('update users set avatar=$1 where id=$2',[b,req.u.id]);res.json({})});
  app.get('/api/avatar/:id',need,async(req,res)=>{const[u]=await q('select avatar from users where id=$1',[+req.params.id]);if(!u||!u.avatar)return res.sendStatus(404);
   res.type(mime(u.avatar)).set('Cache-Control','private, max-age=300').send(u.avatar)});
+
+ app.put('/api/banner',need,async(req,res)=>{const b=Buffer.from(String(req.body.data||''),'base64');if(b.length<100||b.length>450000||!mime(b))return err(res,'Use a PNG/JPEG/WebP/GIF under 450KB');await q('update users set banner=$1 where id=$2',[b,req.u.id]);res.json({})});
+ app.get('/api/banner/:id',need,async(req,res)=>{const[u]=await q('select banner from users where id=$1',[+req.params.id]);if(!u||!u.banner)return res.sendStatus(404);res.type(mime(u.banner)).set('Cache-Control','private, max-age=300').send(u.banner)});
+ app.put('/api/bio',need,async(req,res)=>{await q('update users set bio=$1 where id=$2',[String(req.body.bio||'').slice(0,190),req.u.id]);res.json({})});
+ app.get('/api/user/:id',need,async(req,res)=>{const[u]=await q('select id,username,bio,theme,badges,role,created,(banner is not null) hb from users where id=$1 and not banned',[+req.params.id]);if(!u)return res.sendStatus(404);
+  const[f]=await q('select status,by from friends where a=$1 and b=$2',[Math.min(u.id,req.u.id),Math.max(u.id,req.u.id)]);res.json({...u,friend:f||null})});
+ app.get('/api/members/:sid',need,async(req,res)=>{if(!(await q('select 1 from members where server_id=$1 and user_id=$2',[+req.params.sid,req.u.id]))[0])return err(res,'No access',403);
+  const on=new Set([...wss().clients].map(c=>c.uid));res.json((await q('select u.id,u.username,u.role,u.theme,u.badges from users u join members m on m.user_id=u.id where m.server_id=$1 and not u.banned order by lower(u.username) limit 500',[+req.params.sid])).map(u=>({...u,online:on.has(u.id)})))});
  return{can,ppl,to,leave,rooms}};
