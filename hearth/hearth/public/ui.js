@@ -246,9 +246,9 @@ async function editProfile(){let u;try{u=await api('user/'+me.id)}catch(e){retur
 
 // ---------- server tag editor (owner) ----------
 function tagDialog(s,done){const D=dialog();D.set('Server tag','Members can wear this tag next to their name. 2-4 letters or numbers.');
- let ico=s.tag_icon||TAG_ICONS[0],col=s.tag_color||'#5865f2';const i=el('input');i.maxLength=4;i.placeholder='TAG';i.value=s.tag||'';const f=field('Tag',i),pv=el('div','tgl'),ig=el('div','tgi'),cp=el('input');cp.type='color';cp.value=col;
- const draw1=()=>{pv.replaceChildren(tagChip({tag:(i.value||'TAG').toUpperCase(),tag_icon:ico,tag_color:col}));[...ig.children].forEach((b,k)=>b.classList.toggle('on',TAG_ICONS[k]===ico))};
- TAG_ICONS.forEach(k=>{const b=el('button');b.type='button';b.append(tagIcon(k,18));b.onclick=()=>{ico=k;draw1()};ig.append(b)});
+ const IL=s.invite==='hearth'?['mascot',...TAG_ICONS]:TAG_ICONS;let ico=s.tag_icon||IL[0],col=s.tag_color||'#5865f2';const i=el('input');i.maxLength=4;i.placeholder='TAG';i.value=s.tag||'';const f=field('Tag',i),pv=el('div','tgl'),ig=el('div','tgi'),cp=el('input');cp.type='color';cp.value=col;
+ const draw1=()=>{pv.replaceChildren(tagChip({tag:(i.value||'TAG').toUpperCase(),tag_icon:ico,tag_color:col}));[...ig.children].forEach((b,k)=>b.classList.toggle('on',IL[k]===ico))};
+ IL.forEach(k=>{const b=el('button');b.type='button';b.append(tagIcon(k,18));b.onclick=()=>{ico=k;draw1()};ig.append(b)});
  i.oninput=()=>{i.value=i.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();draw1()};cp.oninput=()=>{col=cp.value;draw1()};
  D.body.append(f,field('Icon',ig),field('Color',cp),field('Preview',pv));draw1();
  const save=async b=>{b.disabled=true;f.err();try{await api('servers/'+s.id+'/tag','PUT',b.rm?{tag:''}:{tag:i.value,icon:ico,color:col});await refresh();const n=servers.find(z=>z.id===s.id);if(n)Object.assign(s,n);D.close();done&&done()}catch(e){f.err(e.message);b.disabled=false}};
@@ -286,7 +286,7 @@ const fmtT=ms=>{const s=Math.max(0,Math.floor(ms/1e3)),h=Math.floor(s/3600),m=Ma
 function draw(){const rail=$('#rail'),side=$('#side');if(!rail||!side||!me)return;const sc=side.querySelector('.sbody'),top=sc?sc.scrollTop:0;rail.replaceChildren();side.replaceChildren();
  const rb=(c,tt,on,fn,cls)=>{const b=el('div','rb'+(on?' on':'')+(cls?' '+cls:''));typeof c==='string'?b.textContent=c:b.append(c);b.title=tt;b.onclick=fn;rail.append(b);return b},home=new Image();home.src=MURI;
  railBadge(rb(home,'Home & DMs',cur==='home',goHome),friends.filter(f=>f.status==='ok').map(f=>dmKey(f.id)));rail.append(el('div','sep'));
- servers.forEach(s=>{const b=rb(initials(s.name),s.name+(s.is_mod?' (moderating)':''),cur===s.id,()=>goServer(s.id));if(s.is_mod){b.classList.add('modrb');b.append(el('i','modmk','🛡'))}railBadge(b,s.channels.map(c=>'c'+c.id))});
+ servers.forEach(s=>{const b=rb(s.invite==='hearth'?(()=>{const m=new Image();m.src=MURI;return m})():initials(s.name),s.name+(s.is_mod?' (moderating)':''),cur===s.id,()=>goServer(s.id));if(s.is_mod){b.classList.add('modrb');b.append(el('i','modmk','🛡'))}railBadge(b,s.channels.map(c=>'c'+c.id))});
  rb(ic(IC.plus,22),'Add a Server',false,addServerDialog,'add');
  $('#app').classList.toggle('nomem',cur==='home'||!showMem);
  const hdr=el('div','sh'),body=el('div','sbody');

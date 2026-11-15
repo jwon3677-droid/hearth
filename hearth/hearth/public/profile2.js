@@ -29,24 +29,24 @@ window.pfx=function(name){const w=el('div','pfx fx-'+name);if(!name||name==='non
  for(let i=0;i<n;i++){const p=el('i','',ch);p.style.cssText=`left:${rnd(0,100)}%;--s:${rnd(.5,1.4).toFixed(2)};--d:${rnd(4,10).toFixed(1)}s;--dl:${(-rnd(0,10)).toFixed(1)}s;--x:${rnd(-24,24).toFixed(0)}px`;w.append(p)}
  return w};
 // ---- server tags ----
-// mascot-style tag icons: the Hearth flame-buddy, each wearing something different
-const BODY='M2.7 10.2a5.3 4.8 0 1 0 10.6 0 5.3 4.8 0 1 0-10.6 0Z',EYES='M5.45 9.6a.75 1.1 0 1 0 1.5 0 .75 1.1 0 1 0-1.5 0ZM9.05 9.6a.75 1.1 0 1 0 1.5 0 .75 1.1 0 1 0-1.5 0Z',SMILE='M6.4 11.7Q8 13.1 9.6 11.7Q8 12.3 6.4 11.7Z';
-const mas=(top,o={})=>`<path fill-rule="evenodd" d="${o.body||BODY}${o.eyes===undefined?EYES:o.eyes}${o.mouth===undefined?SMILE:o.mouth}"/>`+top;
+// full-colour tag icons (each its own little picture); 'mascot' is reserved for the Hearth Lounge
+const P=(d,f,x='')=>`<path d="${d}" fill="${f}" ${x}/>`,L=(d,c,w=1)=>`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
 const TI={
- flame:mas('<path d="M8 .6C9.300 2.300 10.800 3.200 10.300 5.300 9.700 5.700 8.800 5.800 8 5.800S6.300 5.700 5.700 5.300C5.200 3.200 6.700 2.300 8 .6Z"/>'),
- star:mas('<path d="m8 .4 1.100 2.200 2.400.3-1.800 1.600.5 2.400L8 5.700 5.800 6.900l.5-2.400L4.500 2.900l2.400-.3z"/>'),
- bolt:mas('<path d="M9 .4 5.600 3.800h1.800L6.600 6l3.800-3.600H8.600z"/>'),
- heart:mas('<path d="M8 6C4.800 3.700 6 .8 8 2.400 10 .8 11.200 3.700 8 6Z"/>',{eyes:'M5.2 9.100 6.200 8.200 7.200 9.100 6.200 10.400ZM8.800 9.100 9.800 8.200 10.800 9.100 9.800 10.400Z'}),
- skull:mas('<path d="M8 1C9.800 1 10.900 2.200 10.900 3.700 10.900 4.800 10.400 5.400 9.800 5.800V6.300H6.200V5.800C5.600 5.400 5.100 4.800 5.100 3.700 5.100 2.200 6.200 1 8 1Z"/>',{eyes:'M5.300 8.800 6.100 8.100 6.900 8.800 7.700 8.100 8.500 8.800 7.700 9.500 8.500 10.200 7.700 10.900 6.900 10.200 6.100 10.900 5.300 10.200 6.100 9.500Z',mouth:'M6.500 12.300H9.500V12.900H6.500Z'}),
- leaf:mas('<path d="M8 6C4.900 5.700 3.600 3.400 4.100 1.200 6.700 1.200 8.100 2.900 8 6ZM8 6C8.100 3.300 9.700 1.800 12 2.100 12.100 4.400 10.600 5.900 8 6Z"/>'),
- moon:mas('<path d="M9.800 1.300A3.600 3.600 0 1 0 11.400 6C9.100 6 7.700 3.400 9.800 1.300Z"/>',{eyes:'M5.300 9.800H7.100V10.400H5.300ZM8.900 9.800H10.700V10.400H8.900Z'}),
- crown:mas('<path d="M4.600 5.700 4.200 1.700 6.200 3.200 8 .6 9.800 3.200 11.800 1.700 11.400 5.700Z"/>'),
- gem:mas('<path d="M5.800.9H10.200L11.800 2.800 8 6 4.200 2.800ZM4.200 2.800H11.800" />'),
- paw:mas('<path d="M3.200 6.200 3.100 1.100 7 3.300ZM12.800 6.200 12.900 1.100 9 3.300Z"/>'),
- ghost:mas('<path d="M8 1.500C9.800 1.500 10.500 3 10.500 4.200V6H5.500V4.200C5.500 3 6.200 1.500 8 1.500Z"/>',{body:'M2.700 14.800V10C2.700 7.300 4.900 5.400 8 5.400S13.300 7.300 13.300 10V14.800L11.600 13.500 9.800 14.800 8 13.500 6.200 14.800 4.400 13.500Z',mouth:'M7.300 11.300a.7.9 0 1 0 1.400 0 .7.9 0 1 0-1.400 0Z'}),
- music:mas('<path d="M6.600 5.800V1.300L11.200.5V4.700A1.200 1 0 1 1 10 5.400V2.300L7.800 2.700V5.800A1.200 1 0 1 1 6.600 5.800Z"/>')};
-window.TAG_ICONS=Object.keys(TI);
-window.tagIcon=(k,sz=12)=>{const s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('viewBox','0 0 16 16');s.setAttribute('width',sz);s.setAttribute('height',sz);s.setAttribute('fill','currentColor');s.innerHTML=TI[k]||TI.star;return s};
+ flame:P('M8 .8C9 3.500 12.500 5.200 12.500 9.500A4.500 4.500 0 0 1 3.500 9.500C3.500 7.500 4.500 6.500 5.300 5.500 5.600 6.800 6.200 7.300 6.800 7.300 6.800 5 7 3 8 .8Z','#ff7a1a')+P('M8 8.500C9.500 9.800 10.300 10.500 10.300 11.600A2.300 2.300 0 0 1 5.700 11.600C5.700 10.500 6.700 9.800 8 8.500Z','#ffd166'),
+ star:P('M8 1.200 9.900 5.200 14.300 5.800 11.100 8.800 11.900 13.200 8 11.100 4.100 13.200 4.900 8.800 1.700 5.800 6.100 5.200Z','#ffc933','stroke="#e09a0a" stroke-width=".8" stroke-linejoin="round"'),
+ bolt:P('M9.500 1 3.500 9H7.500L6.500 15 12.500 6.500H8.500Z','#ffd23f','stroke="#e8a000" stroke-width=".8" stroke-linejoin="round"'),
+ heart:P('M8 14C2 10 1 6 3 3.800 4.800 2 7 2.600 8 4.400 9 2.600 11.200 2 13 3.800 15 6 14 10 8 14Z','#ff4d6d')+P('M4 5.200C4.300 4.400 5.200 4.100 5.900 4.500 5.200 4.500 4.600 4.900 4.400 5.700Z','#ffb3c0'),
+ skull:P('M8 1.500C4.800 1.500 3 3.700 3 6.300 3 8 3.800 9.200 5 9.900V12.500H11V9.900C12.200 9.200 13 8 13 6.300 13 3.700 11.200 1.500 8 1.500Z','#f1f1f4','stroke="#9a9ca8" stroke-width=".7"')+'<circle cx="5.800" cy="6.800" r="1.500" fill="#2a2a33"/><circle cx="10.200" cy="6.800" r="1.500" fill="#2a2a33"/>'+P('M8 8.200 7.300 9.600H8.700Z','#2a2a33')+L('M7 10.800V12.500M9 10.800V12.500','#2a2a33',.8),
+ leaf:P('M13.500 2C6 2 2.500 5.500 2.500 9.500 2.500 11 3.300 12.300 4.500 12.800 5 9.500 7.500 7 10 6 7.600 8 6.200 10.200 5.500 13.200 11.500 12.500 14 8 13.500 2Z','#43b05a')+L('M3 14Q5 9.500 9.500 6.500','#1f5a2c',1),
+ moon:P('M10.500 1.500A6.500 6.500 0 1 0 14.500 10 5.200 5.200 0 0 1 10.500 1.500Z','#ffd966','stroke="#d9a620" stroke-width=".7" stroke-linejoin="round"')+P('M12.300 2.800 12.800 4 14 4.400 12.800 4.800 12.300 6 11.800 4.800 10.600 4.400 11.800 4Z','#fff3b0'),
+ crown:P('M2 12.500 1.500 4.500 5 7.500 8 3 11 7.500 14.500 4.500 14 12.500Z','#ffc933','stroke="#e09a0a" stroke-width=".7" stroke-linejoin="round"')+P('M2 12.500H14V14H2Z','#e09a0a')+'<circle cx="8" cy="10" r="1.100" fill="#e8344f"/><circle cx="4.800" cy="10.300" r=".8" fill="#4cc9f0"/><circle cx="11.200" cy="10.300" r=".8" fill="#4cc9f0"/>',
+ gem:P('M4.500 2.500H11.500L14.500 6 8 14.500 1.500 6Z','#5cd6ff')+P('M4.500 2.500H11.500L10.500 6H5.500Z','#a6ecff')+L('M1.500 6H14.500M5.500 6 8 14.500 10.500 6M4.500 2.500 5.500 6M11.500 2.500 10.500 6','#2aa6dd',.7),
+ paw:P('M8 8.500C5.500 8.500 3.800 10.800 4.500 12.500 5 13.700 6.500 13.500 8 13 9.500 13.500 11 13.700 11.500 12.500 12.200 10.800 10.500 8.500 8 8.500Z','#ff8fb8')+'<ellipse cx="3.300" cy="7" rx="1.300" ry="1.800" fill="#ff8fb8"/><ellipse cx="6" cy="3.900" rx="1.400" ry="1.900" fill="#ff8fb8"/><ellipse cx="10" cy="3.900" rx="1.400" ry="1.900" fill="#ff8fb8"/><ellipse cx="12.700" cy="7" rx="1.300" ry="1.800" fill="#ff8fb8"/>',
+ ghost:P('M8 1.500C4.800 1.500 3 4 3 7V14.200L5 12.800 6.500 14.200 8 12.800 9.500 14.200 11 12.800 13 14.200V7C13 4 11.200 1.500 8 1.500Z','#f4f4ff','stroke="#b9b9d6" stroke-width=".8" stroke-linejoin="round"')+'<ellipse cx="6.200" cy="7" rx=".9" ry="1.300" fill="#2a2a33"/><ellipse cx="9.800" cy="7" rx=".9" ry="1.300" fill="#2a2a33"/><ellipse cx="8" cy="9.500" rx=".8" ry="1" fill="#2a2a33"/><ellipse cx="4.800" cy="9" rx="1" ry=".6" fill="#ffb3cf"/><ellipse cx="11.200" cy="9" rx="1" ry=".6" fill="#ffb3cf"/>',
+ music:P('M6 2.800 13 1.500V4.500L6 5.800Z','#a78bfa')+P('M6 3H7.200V11.500H6Z','#7c5cff')+P('M11.800 2H13V10H11.800Z','#7c5cff')+'<ellipse cx="4.800" cy="11.800" rx="2.200" ry="1.700" fill="#7c5cff"/><ellipse cx="10.600" cy="10.300" rx="2.200" ry="1.700" fill="#7c5cff"/>',
+ mascot:P('M8 .6C9.200 2.300 11 3 10.600 5.200 10 5.600 9 5.700 8 5.700S6 5.600 5.400 5.200C5 3 6.800 2.300 8 .6Z','#ff8a3d')+'<ellipse cx="8" cy="10.300" rx="5.600" ry="5" fill="#ff6a4d"/><ellipse cx="8" cy="11.800" rx="3.400" ry="2.800" fill="#ffe0b8"/><ellipse cx="6" cy="9.800" rx=".9" ry="1.200" fill="#2a1630"/><ellipse cx="10" cy="9.800" rx=".9" ry="1.200" fill="#2a1630"/><circle cx="2.800" cy="11" r="1" fill="#ff6a5c"/><circle cx="13.200" cy="11" r="1" fill="#ff6a5c"/>'+L('M6.800 11.800Q8 12.800 9.200 11.800','#2a1630',.8)};
+window.TAG_ICONS=Object.keys(TI).filter(k=>k!=='mascot');
+window.tagIcon=(k,sz=12)=>{const s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('viewBox','0 0 16 16');s.setAttribute('width',sz);s.setAttribute('height',sz);s.innerHTML=TI[k]||TI.star;return s};
 window.tagChip=function(t){if(!t||!t.tag)return null;const c=el('span','stg');c.style.setProperty('--tc',t.tag_color||'#5865f2');c.title='Server tag: '+t.tag;c.append(tagIcon(t.tag_icon),el('b','',t.tag));return c};
 // ---- favicon (mascot) ----
 (function(){let l=document.querySelector('link[rel=icon]');if(!l){l=document.createElement('link');l.rel='icon';document.head.append(l)}l.type='image/svg+xml';l.href='/favicon.svg'})();
