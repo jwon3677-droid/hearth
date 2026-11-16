@@ -28,5 +28,9 @@ module.exports=({app,q,need,err,X,F,bc})=>{
   X.to(await X.ppl(ch),{type:'msg',m:await F.one(m.id)});res.json({})});
  app.get('/api/att/:id',need,async(req,res)=>{const[a]=await q('select * from attachments where id=$1',[+req.params.id]);if(!a||!await X.can(req.u.id,a.channel))return res.sendStatus(404);
   const img=a.type!=='application/octet-stream';
-  res.set({'Content-Type':img?a.type:'application/octet-stream','Content-Disposition':(img?'inline':'attachment')+'; filename="'+a.name.replace(/[^\x20-\x7e]/g,'_')+'"','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox",'Cache-Control':'private, max-age=3600'}).send(a.data)});
+  const total=a.data.length,rg=/^bytes=(\d*)-(\d*)$/.exec(req.headers.range||'');let part=null;
+  if(rg&&(rg[1]||rg[2])&&img){let s=rg[1]===''?Math.max(0,total-(+rg[2])):+rg[1],e=rg[1]===''||rg[2]===''?total-1:Math.min(+rg[2],total-1);
+   if(s>e||s>=total)return res.status(416).set('Content-Range','bytes */'+total).end();part=[s,e]}
+  res.set({'Accept-Ranges':'bytes'});if(part)res.status(206).set({'Content-Range':'bytes '+part[0]+'-'+part[1]+'/'+total});
+  res.set({'Content-Type':img?a.type:'application/octet-stream','Content-Disposition':(img?'inline':'attachment')+'; filename="'+a.name.replace(/[^\x20-\x7e]/g,'_')+'"','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox",'Cache-Control':'private, max-age=3600'}).send(part?a.data.subarray(part[0],part[1]+1):a.data)});
 };

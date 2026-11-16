@@ -152,15 +152,15 @@ function msgMenu(m,d,x,y,target){const it=[],sel=String(getSelection()||'').trim
  if(a){it.push(['Open Link',()=>window.open(a.href,'_blank','noopener')],['Copy Link',()=>copyTxt(a.href)],'sep')}
  if(sel)it.push(['Copy',()=>copyTxt(sel)],'sep');
  it.push(['Add Reaction',()=>reactPick(d),{ic:IC.smile}]);
- if(m.uid===me.id)it.push(['Edit Message',()=>editMsg(d),{ic:IC.edit}]);
+ if(m.uid===me.id&&!parsePoll(m.body)&&m.body!==WAVE_TOKEN)it.push(['Edit Message',()=>editMsg(d),{ic:IC.edit}]);
  if(canPin(m))it.push([m.pinned?'Unpin Message':'Pin Message',()=>pinMsg(m),{ic:IC.pin}]);
- it.push(['Reply',()=>setReply(m),{ic:IC.reply}],['Copy Text',()=>copyTxt(m.body),{ic:IC.copy}],'sep',['Copy Message ID',()=>copyTxt(String(m.id))]);
+ it.push(['Reply',()=>setReply(m),{ic:IC.reply}],['Copy Text',()=>copyTxt(tokText(m.body)),{ic:IC.copy}],'sep',['Copy Message ID',()=>copyTxt(String(m.id))]);
  if(canDel(m))it.push(['Delete Message',e=>delMsg(m,e&&e.shiftKey),{danger:1,ic:IC.trash}]);
  ctxOpen(x,y,it)}
 function toolbar(m,d){const t=el('div','tb'),mk=(ico,title,fn,cls)=>{const b=ib(ico,title,fn,18);if(cls)b.className+=' '+cls;return b};
  t.append(mk(IC.smile,'Add Reaction',()=>reactPick(d)),mk(IC.reply,'Reply',()=>setReply(m)));
  if(m.uid===me.id)t.append(mk(IC.edit,'Edit',()=>editMsg(d)));
- t.append(mk(IC.copy,'Copy Text',()=>copyTxt(m.body),'xs'));      // xs = only while Shift is held
+ t.append(mk(IC.copy,'Copy Text',()=>copyTxt(tokText(m.body)),'xs'));      // xs = only while Shift is held
  if(canPin(m))t.append(mk(IC.pin,m.pinned?'Unpin Message':'Pin Message',()=>pinMsg(m),'xs'));
  if(canDel(m))t.append(mk(IC.trash,'Delete Message (Shift+click skips the prompt)',e=>delMsg(m,e.shiftKey),'xs dng'));
  t.append(mk(IC.dots,'More',e=>{const r=e.currentTarget.getBoundingClientRect();msgMenu(m,d,r.left,r.bottom+4)}));return t}
@@ -168,7 +168,7 @@ function delMsg(m,instant){const go=()=>api('msg/'+m.id,'DELETE').catch(fail);if
  const ov=el('div','dlg'),c=el('div','dc'),pv=el('div','dpv'),no=el('button','g','Cancel'),yes=el('button','dgb','Delete'),bt=el('div','dbt'),esc=e=>{if(e.key==='Escape')off();if(e.key==='Enter'){off();go()}},off=()=>{ov.remove();removeEventListener('keydown',esc)};
  pv.append(render(m,false,false));bt.append(no,yes);c.append(el('h3','','Delete Message'),el('div','mu','Are you sure you want to delete this message?'),pv,el('div','dtip','Tip: hold Shift while clicking Delete to skip this prompt.'),bt);
  no.onclick=off;yes.onclick=()=>{off();go()};ov.onmousedown=e=>{if(e.target===ov)off()};addEventListener('keydown',esc);ov.append(c);document.body.append(ov);yes.focus()}
-function editMsg(d){const m=d._m;if(!m||m.uid!==me.id||d.classList.contains('editing'))return;d.classList.add('editing');
+function editMsg(d){const m=d._m;if(!m||m.uid!==me.id||parsePoll(m.body)||m.body===WAVE_TOKEN||d.classList.contains('editing'))return;d.classList.add('editing');
  const mt=d.querySelector('.mt'),bx=el('div','eb'),ta=el('textarea'),hint=el('div','eh'),cx=el('a','','cancel'),sv=el('a','','save');
  const done=()=>{d.classList.remove('editing');bx.replaceWith(mt)},save=async()=>{const v=ta.value.trim();if(!v){done();return delMsg(m,false)}if(v===m.body)return done();try{await api('msg/'+m.id,'PUT',{body:v});done()}catch(e){fail(e)}};
  ta.value=m.body;ta.maxLength=1000;ta.rows=1;cx.onclick=done;sv.onclick=save;cx.href=sv.href='#';hint.append('escape to ',cx,' • enter to ',sv);

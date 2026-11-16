@@ -49,3 +49,7 @@ New: `manage.js`, `public/settings.js`. New table `mod_servers` and column `user
 - **Staff admin on every server**: Staff Panel > Servers > Moderate. Staff/admin get owner-level control (settings, channels, kicks, delete, tag, pins, @everyone) and can read/send in any server's channels, without being a member, so they don't appear in member lists or counts. Moderated servers show a shield on the rail; "Stop Moderating" in the server menu removes it. Staff can't be removed by server owners.
 - **Server settings** (owner or staff): server menu > Server Settings: rename, invite code (copy/reset), tag, rename/delete channels, remove members, delete server (the default Lounge is protected).
 - **User settings** (gear bottom-left): My Account (username, password, delete account), Appearance (text size, compact, 24h time, reduce motion, hide effects), Notifications (mention sound, desktop notifications), Privacy (allow friend requests). Appearance/notification choices are stored in the browser.
+
+## Voice relay (optional)
+Voice uses public STUN servers. If people on strict networks (some school/work/mobile connections) can't hear each other, add a TURN relay:
+set `TURN_URL` (e.g. `turn:your-host:3478`, comma-separate several), `TURN_USER` and `TURN_PASS` as env vars. Clients pick them up from `/api/ice`.

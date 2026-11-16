@@ -357,13 +357,13 @@ const vicon=d=>{const s=el('span','vi');s.append(ic(d,16));return s};
 setInterval(()=>document.querySelectorAll('.vt[data-s]').forEach(n=>n.textContent=fmtT(Date.now()-n.dataset.s)),1000);
 
 // ---------- voice (WebRTC mesh; signalling and room state over the WebSocket) ----------
-let vrooms={},selfMute=false,selfDeaf=false,speaking=new Set(),actx=null;const mon={};
+let ICE=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.cloudflare.com:3478']}];let vrooms={},selfMute=false,selfDeaf=false,speaking=new Set(),actx=null;const mon={};
 const sig=(to,data)=>ws.send(JSON.stringify({type:'sig',to,data}));
 function watch(id,s){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const an=actx.createAnalyser();an.fftSize=512;actx.createMediaStreamSource(s).connect(an);mon[id]={an,buf:new Uint8Array(an.fftSize)}}catch{}}
 setInterval(()=>{if(!Object.keys(mon).length&&!speaking.size)return;const now=new Set();
  for(const id in mon){const m=mon[id];m.an.getByteTimeDomainData(m.buf);let x=0;for(const v of m.buf){const t=(v-128)/128;x+=t*t}if(Math.sqrt(x/m.buf.length)>.035&&!(+id===me.id&&(selfMute||selfDeaf)))now.add(+id)}
  if(now.size===speaking.size&&[...now].every(i=>speaking.has(i)))return;speaking=now;document.querySelectorAll('.vp').forEach(n=>n.classList.toggle('speak',now.has(+n.dataset.uid)))},120);
-function peer(id){if(pcs[id])return pcs[id].pc;const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]}),a=new Audio();a.autoplay=true;a.volume=userVol(id);a.muted=selfDeaf;document.body.append(a);pcs[id]={pc,a};
+function peer(id){if(pcs[id])return pcs[id].pc;const pc=new RTCPeerConnection({iceServers:ICE}),a=new Audio();a.autoplay=true;a.volume=userVol(id);a.muted=selfDeaf;document.body.append(a);pcs[id]={pc,a};
  stream.getTracks().forEach(t=>pc.addTrack(t,stream));pc.ontrack=e=>{a.srcObject=e.streams[0];watch(id,e.streams[0])};pc.onicecandidate=e=>e.candidate&&sig(id,{ice:e.candidate});return pc}
 function vclose(id){delete mon[id];if(!pcs[id])return;pcs[id].pc.close();pcs[id].a.remove();delete pcs[id];delete names[id]}
 function vcleanup(){Object.keys(pcs).forEach(vclose);delete mon[me&&me.id];stream&&stream.getTracks().forEach(t=>t.stop());stream=null;room=null;names={};speaking=new Set()}
@@ -372,11 +372,13 @@ function applyAudio(){if(stream)stream.getAudioTracks().forEach(t=>t.enabled=!(s
 function toggleMute(){if(selfDeaf){selfDeaf=false;selfMute=false}else selfMute=!selfMute;applyAudio();draw()}
 function toggleDeaf(){selfDeaf=!selfDeaf;applyAudio();draw()}
 async function vjoin(c){if(room&&room.id===c.id)return;if(room)vleave();
+ try{const x=await api('ice');Array.isArray(x)&&x.length&&(ICE=x)}catch{}
  try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch{return toast('Hearth needs microphone access to join voice. Check your browser\'s site permissions.')}
  room=c;names={};ws.send(JSON.stringify({type:'vjoin',ch:'c'+c.id,muted:selfMute||selfDeaf,deaf:selfDeaf}));watch(me.id,stream);applyAudio();draw()}
 function vleave(){ws.send(JSON.stringify({type:'vleave'}));vcleanup();draw()}
 function onSig(d){chain=chain.then(async()=>{if(!stream)return;const pc=peer(d.from),x=d.data;
- if(x.sdp){await pc.setRemoteDescription(x.sdp);if(x.sdp.type==='offer'){await pc.setLocalDescription(await pc.createAnswer());sig(d.from,{sdp:pc.localDescription})}}else if(x.ice)await pc.addIceCandidate(x.ice)}).catch(()=>{})}
+ const P=pcs[d.from];if(x.sdp){await pc.setRemoteDescription(x.sdp);const qd=P.q||[];P.q=[];for(const c of qd)await pc.addIceCandidate(c).catch(()=>{});if(x.sdp.type==='offer'){await pc.setLocalDescription(await pc.createAnswer());sig(d.from,{sdp:pc.localDescription})}}
+ else if(x.ice){if(pc.remoteDescription)await pc.addIceCandidate(x.ice).catch(()=>{});else(P.q=P.q||[]).push(x.ice)}}).catch(()=>{})}
 function connect(){ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
  ws.onmessage=async e=>{const d=JSON.parse(e.data);if(d.type==='presence'){clearTimeout(window.pt);window.pt=setTimeout(()=>{members();pollFriends()},400)}
   if(d.type==='msg')onMsg(d.m);if(['edit','react','pin','typing'].includes(d.type))onEvt(d);

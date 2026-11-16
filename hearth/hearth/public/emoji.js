@@ -21,7 +21,7 @@ function pickerFill(emo,pk){
  const section=(id,title,cells)=>{const h=el('div','esh',title);h.dataset.c=id;const g=el('div','eg2');cells.forEach(c=>g.append(c));sc.append(h,g);return h};
  let heads=[];
  const build=()=>{sc.replaceChildren();heads=[];const q=inp.value.trim().toLowerCase();
-  if(q){const hit=[];EMOJI_DATA.forEach(([,l])=>l.forEach(([s,n])=>{if(hit.length<240&&n.includes(q))hit.push(cell(s,n.split(' ')[0]))}));
+  if(q){const hit=[];EMOJI_DATA.forEach(([,l])=>l.forEach(([s,n,x])=>{if(hit.length<240&&(n.toLowerCase().includes(q)||x.includes(q)))hit.push(cell(s,n))}));
    if(!hit.length)sc.append(el('div','eno','No emoji found'));else section('s','Search results',hit);tabs.style.display='none';return}
   tabs.style.display='';
   if(recent.length)heads.push(section('recent','Frequently Used',recent.map(s=>cell(s,names[s]||''))));

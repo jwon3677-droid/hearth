@@ -7,13 +7,13 @@ function mNav(on){document.body.classList.toggle('m-nav',!!on);if(on&&MQ.matches
 function mClose(){document.body.classList.remove('m-nav');if(MQ.matches&&typeof showMem!=='undefined'&&showMem&&document.querySelector('#app:not(.nomem)')){showMem=false;draw()}}
 (()=>{
  const css=`
-.navbtn{display:none}
+.navbtn,button.navbtn{display:none!important}
 @media(max-width:720px){
  html,body{overflow:hidden;overscroll-behavior:none}
  #app,#main{height:100vh;height:100dvh!important}
  #app,#app.nomem{grid-template-columns:minmax(0,1fr)!important}
  #main{width:100%}
- .navbtn{display:grid}
+ .navbtn,button.navbtn{display:grid!important}
  #top{padding:0 8px!important;gap:6px!important}#top b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
  /* drawers */
  #rail,#side,#mem{position:fixed!important;top:0;bottom:0;z-index:60;transition:transform .22s ease;will-change:transform}

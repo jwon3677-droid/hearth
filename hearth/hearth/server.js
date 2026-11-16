@@ -12,7 +12,7 @@ const UX=require('./ux');
 const THEMES=['midnight','sunset','forest','candy','ocean','rose','gold','mint','lavender','mono'],BADGES=['staff','og','early','verified','supporter','mgmt','helper','bugrep','elitebug','bughunter'],CH=['general','media','self-promo','flex-your-names'];
 const app=express();app.set('trust proxy',1);
 app.use(['/api/avatar','/api/banner'],express.json({limit:'700kb'}));
-app.use(helmet({contentSecurityPolicy:{directives:{...helmet.contentSecurityPolicy.getDefaultDirectives(),'img-src':["'self'",'data:','https://cdn.jsdelivr.net']}}}),express.json({limit:'10kb'}),express.static('public'));
+app.use(helmet({contentSecurityPolicy:{directives:{...helmet.contentSecurityPolicy.getDefaultDirectives(),'img-src':["'self'",'data:','https://cdn.jsdelivr.net'],'media-src':["'self'",'blob:']}}}),express.json({limit:'10kb'}),express.static('public'));
 app.use('/api',rl({windowMs:6e4,max:120}));const authLimit=rl({windowMs:15*6e4,max:20});
 const pub=u=>({id:u.id,username:u.username,theme:u.theme,badges:u.badges,role:u.role,nfont:u.nfont,neffect:u.neffect,ncolor:u.ncolor,ncolor2:u.ncolor2,status:u.status||'online',cstatus:u.cstatus||'',dname:u.dname,pronouns:u.pronouns,peffect:u.peffect,pc1:u.pc1,pc2:u.pc2,tag_server:u.tag_server,adeco:u.adeco,allow_fr:u.allow_fr!==false});
 const sign=(res,id)=>res.cookie('t',jwt.sign({id},SECRET,{expiresIn:'7d'}),{httpOnly:true,sameSite:'strict',secure:process.env.NODE_ENV==='production',maxAge:6048e5});
@@ -33,6 +33,9 @@ app.post('/api/login',authLimit,async(req,res)=>{const{username:n,password:p}=re
  const[u]=await q('select * from users where lower(username)=lower($1)',[String(n||'')]);
  if(!u||typeof p!=='string'||!await bcrypt.compare(p,u.password))return err(res,'Wrong username or password',401);
  if(u.banned)return err(res,'This account is banned',403);sign(res,u.id);res.json(pub(u))});
+// ICE servers for voice: public STUN by default; set TURN_URL (+ TURN_USER / TURN_PASS) to add a relay for strict networks
+app.get('/api/ice',need,(req,res)=>{const s=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.cloudflare.com:3478']}];
+ if(process.env.TURN_URL)s.push({urls:process.env.TURN_URL.split(',').map(x=>x.trim()),username:process.env.TURN_USER||'',credential:process.env.TURN_PASS||''});res.json(s)});
 app.post('/api/logout',(req,res)=>{res.clearCookie('t');res.json({})});
 app.get('/api/me',need,(req,res)=>res.json({...pub(req.u),owner:!!req.u.owner}));
 app.put('/api/profile',need,async(req,res)=>{if(!THEMES.includes(req.body.theme))return err(res,'Bad theme');await q('update users set theme=$1 where id=$2',[req.body.theme,req.u.id]);res.json({})});
@@ -56,8 +59,8 @@ const server=http.createServer(app);
 const wss=new WebSocketServer({server,path:'/ws',maxPayload:16384,verifyClient:({origin,req})=>!origin||new URL(origin).host===req.headers.host});
 const bc=o=>wss.clients.forEach(c=>c.readyState===1&&c.send(JSON.stringify(o)));
 wss.on('connection',async(ws,req)=>{const u=await userFrom(cookie.parse(req.headers.cookie||'').t);if(!u)return ws.close();
- ws.uid=u.id;ws.name=u.username;bc({type:'presence'});X.snap(ws);let n=0;const t=setInterval(()=>n=0,1e4);ws.on('close',()=>{clearInterval(t);X.leave(ws);setTimeout(()=>bc({type:'presence'}),300)});
- ws.on('message',async raw=>{try{if(++n>40)return;const d=JSON.parse(raw),send=o=>ws.send(JSON.stringify(o));
+ ws.uid=u.id;ws.name=u.username;bc({type:'presence'});X.snap(ws);let n=0,sg=0;const t=setInterval(()=>{n=0;sg=0},1e4);ws.on('close',()=>{clearInterval(t);X.leave(ws);setTimeout(()=>bc({type:'presence'}),300)});
+ ws.on('message',async raw=>{try{const d=JSON.parse(raw),send=o=>ws.send(JSON.stringify(o));if(d.type==='sig'){if(++sg>600)return}else if(++n>40)return;
   if(!(await q('select 1 from users where id=$1 and not banned',[u.id]))[0])return ws.close();
   if(d.type==='vleave')return X.leave(ws);
   if(d.type==='vstate'){ws.muted=!!d.muted;ws.deaf=!!d.deaf;if(ws.room)X.vbc(ws.room);return}

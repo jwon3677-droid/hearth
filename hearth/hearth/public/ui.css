@@ -161,3 +161,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .pollopts{display:grid;gap:8px}.pollopts input{height:40px}.pollmulti{display:flex;gap:8px;align-items:center;margin-top:12px;color:#dbdee1;cursor:pointer}.pollmulti input{width:auto;height:auto}
 .vrec{display:flex;align-items:center;gap:12px;padding:12px;background:#1e1f22;border-radius:8px}.vrec .rd{width:12px;height:12px;border-radius:50%;background:#f23f43;animation:vpulse 1s infinite}.vrec.done{display:none}.vrec .vt{font-variant-numeric:tabular-nums;font-size:18px;flex:1}
 @keyframes vpulse{50%{opacity:.25}}.dg-b audio{width:100%;margin-top:8px}
+
+/* the app manages its own scrolling; the page itself must never scroll */
+html:has(#app),html:has(#app) body{height:100%;overflow:hidden}
+#app{overflow:hidden}
