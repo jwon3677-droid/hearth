@@ -12,6 +12,7 @@ async function uploadFile(file,input){if(!ch)return;if(file.size>MAXF)return toa
  try{await putRaw('/api/upload?channel='+encodeURIComponent(ch)+'&name='+encodeURIComponent(file.name)+(t?'&text='+encodeURIComponent(t):''),'POST',file);if(input&&t)input.value=''}catch(e){fail(e)}}
 function attachNode(m){if(!m.att_id)return null;const u='/api/att/'+m.att_id,w=el('div','att'),isImg=m.att_type&&m.att_type.startsWith('image/');
  if(isImg){const a=el('a');a.href=u;a.target='_blank';a.rel='noopener';const im=new Image();im.src=u;im.loading='lazy';im.alt=m.att_name;im.style.cssText='max-width:min(400px,100%);max-height:300px;border-radius:8px;display:block;margin-top:4px';a.append(im);w.append(a)}
+ else if(m.att_type&&m.att_type.startsWith('audio/')){const au=el('audio');au.controls=true;au.preload='metadata';au.src=u;au.style.cssText='display:block;margin-top:4px;width:min(320px,100%)';w.append(au)}
  else{const a=el('a','',m.att_name+' · '+fmtSz(m.att_size||0));a.href=u;a.download=m.att_name;a.style.cssText='display:inline-block;margin-top:4px;padding:8px 12px;border-radius:8px;background:#2b2d31;color:#00a8fc;text-decoration:none';w.append(a)}return w}
 // In-app replacements for the browser's prompt()/confirm() popups
 function askDialog(title,sub,build,okText,danger){return new Promise(res=>{

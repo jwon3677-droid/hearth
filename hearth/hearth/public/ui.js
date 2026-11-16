@@ -436,4 +436,4 @@ function userMenu(u,x,y){
 (()=>{const s=document.createElement('style');s.textContent='#ctx{min-width:210px}.ci small{font-size:12px;font-weight:400;color:#949ba4;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ci:hover small{color:#ffffffcc}.cvol{padding:6px 8px 8px;color:#b5bac1;font-weight:600}.cvol input{outline:none;box-shadow:none;padding:0;border:0;background:none;height:20px;margin:4px 0 0;accent-color:#5865f2;cursor:pointer}.mtop .stg{flex:none}';document.head.append(s)})();
 
 // open a DM with anyone; strangers' first message goes to their Message Requests
-function openDM(u){const k=dmKey(u.id);if(u.id!==me.id&&!dmKnown(k))dmList.push({id:u.id,username:u.username,theme:u.theme||'midnight',adeco:u.adeco||null,ps:'offline'});cur='home';open(k,'@ '+u.username);members()}
+function openDM(u){const k=dmKey(u.id);if(u.id!==me.id&&!dmKnown(k))dmList.push({id:u.id,username:u.username,theme:u.theme||'midnight',adeco:u.adeco||null,ps:'offline',tmp:1});cur='home';open(k,'@ '+u.username);members()}

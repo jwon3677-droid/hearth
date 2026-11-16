@@ -1,6 +1,15 @@
 // Server icons + file attachments (stored in Postgres, 10MB cap)
 const MAX=10*1024*1024,rl=require('express-rate-limit'),express=require('express');
 const mime=b=>b.slice(0,4).toString()==='GIF8'?'image/gif':b[0]===0xff&&b[1]===0xd8?'image/jpeg':b.slice(1,4).toString()==='PNG'?'image/png':b.slice(0,4).toString()==='RIFF'&&b.slice(8,12).toString()==='WEBP'?'image/webp':null;
+// audio attachments (voice messages): recognised by file signature AND extension, served inline so <audio> can play them
+const amime=(b,name)=>{const x=(/\.([a-z0-9]+)$/i.exec(name)||[])[1]||'',e=x.toLowerCase(),h=b.slice(0,4).toString('latin1');
+ if(h==='OggS'&&['ogg','oga','opus'].includes(e))return'audio/ogg';
+ if((h.slice(0,3)==='ID3'||(b[0]===0xff&&(b[1]&0xe0)===0xe0))&&['mp3','mpga'].includes(e))return'audio/mpeg';
+ if(h==='RIFF'&&b.slice(8,12).toString('latin1')==='WAVE'&&e==='wav')return'audio/wav';
+ if(h==='fLaC'&&e==='flac')return'audio/flac';
+ if(b[0]===0x1a&&b[1]===0x45&&b[2]===0xdf&&b[3]===0xa3&&['webm','weba'].includes(e))return'audio/webm';
+ if(b.slice(4,8).toString('latin1')==='ftyp'&&['m4a','mp4','aac'].includes(e))return'audio/mp4';
+ return null};
 module.exports=({app,q,need,err,X,F,bc})=>{
  const raw=express.raw({type:()=>true,limit:MAX}),lim=rl({windowMs:6e4,max:12});
  const canEdit=async(req,id)=>(await q("select 1 from servers where id=$1 and (owner_id=$2 or exists(select 1 from users where id=$2 and role in ('staff','admin')))",[id,req.u.id]))[0];
@@ -13,7 +22,7 @@ module.exports=({app,q,need,err,X,F,bc})=>{
  // upload a file as a message: PUT raw bytes, ?channel=..&name=..&text=..
  app.post('/api/upload',need,lim,raw,async(req,res)=>{const ch=String(req.query.channel||''),b=Buffer.isBuffer(req.body)?req.body:Buffer.alloc(0);
   if(!await X.can(req.u.id,ch))return err(res,'No access',403);if(!b.length)return err(res,'Empty file');if(b.length>MAX)return err(res,'File too large (max 10MB)',413);
-  const name=String(req.query.name||'file').replace(/[\u0000-\u001f\u007f\\/"<>:*?|]/g,'_').slice(0,100)||'file',text=String(req.query.text||'').trim().slice(0,1000),type=mime(b)||'application/octet-stream';
+  const name=String(req.query.name||'file').replace(/[\u0000-\u001f\u007f\\/"<>:*?|]/g,'_').slice(0,100)||'file',text=String(req.query.text||'').trim().slice(0,1000),type=mime(b)||amime(b,name)||'application/octet-stream';
   const[a]=await q('insert into attachments(data,name,type,channel,size) values($1,$2,$3,$4,$5) returning id',[b,name,type,ch,b.length]);
   const[m]=await q('insert into messages(channel,user_id,body,att_id,att_name,att_type,att_size) values($1,$2,$3,$4,$5,$6,$7) returning id',[ch,req.u.id,text,a.id,name,type,b.length]);
   X.to(await X.ppl(ch),{type:'msg',m:await F.one(m.id)});res.json({})});

@@ -133,3 +133,31 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .dmintro h1{margin:0 0 4px;font-size:32px;line-height:1.15;color:#f2f3f5;word-break:break-word}.dmintro p{margin:0;color:#b5bac1;font-size:15px}.dmintro p b{color:#f2f3f5}
 .dmwave{margin-top:22px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}.dmwave img{filter:drop-shadow(0 4px 8px #0006)}.dmwave .btn{height:40px;padding:0 20px;font-size:15px}
 .wavest{display:block;margin:4px 0;max-width:140px;height:auto;user-select:none}
+
+/* ---- DM intro sits right above the chat box ---- */
+#msgs.dmempty{display:flex;flex-direction:column}#msgs.dmempty .dmintro{margin-top:auto}
+
+/* ---- emoji picker ---- */
+#emo,#rpick{width:min(352px,calc(100vw - 16px))}
+.ehd{display:flex;gap:8px;padding:10px 10px 6px;align-items:center}
+.ehd input{flex:1;min-width:0;height:34px;background:#1e1f22;border:0;border-radius:6px;padding:0 10px;color:#dbdee1;outline:none;font-size:14px}.ehd input:focus{box-shadow:0 0 0 2px var(--ac)}
+.etone{background:none!important;padding:4px!important;border-radius:6px;display:grid;place-items:center}.etone:hover{background:#35373c!important}.etone .em{width:24px;height:24px;margin:0}
+.etones{display:none;gap:2px;padding:0 10px 6px;justify-content:flex-end}.etones.on{display:flex}.etones button{background:none;padding:4px;border-radius:6px}.etones button:hover{background:#35373c}.etones .em{width:22px;height:22px;margin:0}
+.etb{display:flex;gap:2px;padding:2px 8px 6px;border-bottom:1px solid #1e1f22}.etb span{flex:1;display:grid;place-items:center;padding:5px 0;border-radius:6px;cursor:pointer;opacity:.55}.etb span.on,.etb span:hover{background:#35373c;opacity:1}.etb .em{width:20px;height:20px;margin:0}
+.egs{flex:1;min-height:0;overflow-y:auto;position:relative;padding:0 6px 8px;scrollbar-width:thin}
+.esh{position:sticky;top:0;z-index:1;background:#2b2d31;padding:10px 4px 6px;font-size:12px;font-weight:700;text-transform:uppercase;color:#b5bac1;letter-spacing:.02em}
+.eg2{display:grid;grid-template-columns:repeat(8,1fr);gap:2px}.eg2 span{display:grid;place-items:center;height:38px;border-radius:6px;cursor:pointer}.eg2 span:hover{background:#383a40}.eg2 .em{width:26px;height:26px;margin:0;transition:transform .08s}.eg2 span:hover .em{transform:scale(1.2)}
+.eno{padding:40px 0;text-align:center;color:#949ba4}
+
+/* ---- "+" menu ---- */
+.upm{position:fixed;z-index:2500;min-width:240px;padding:8px;background:#111214;border:1px solid #2b2d31;border-radius:8px;box-shadow:0 8px 24px #000a}
+.upi{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:4px;cursor:pointer;color:#dbdee1;font-size:15px;font-weight:500}.upi:hover{background:var(--ac);color:#fff}.upi svg{flex:none;color:#b5bac1}.upi:hover svg{color:#fff}
+
+/* ---- polls ---- */
+.poll{max-width:420px;margin-top:4px;padding:12px;border:1px solid #3f4147;border-radius:8px;background:#2b2d31}.pq{font-weight:700;font-size:16px;color:#f2f3f5;word-break:break-word}.pm{font-size:12px;color:#949ba4;margin:2px 0 10px}
+.po{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-top:6px;padding:9px 12px;border-radius:6px;background:#1e1f22!important;color:#dbdee1;text-align:left;overflow:hidden;border:1px solid transparent}.po:hover{border-color:#4e5058}.po.on{border-color:var(--ac)}
+.po i{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--ac) 35%,transparent);transition:width .25s;z-index:0}.po>span{position:relative;z-index:1}.pl{flex:1;min-width:0;word-break:break-word}.pk{color:var(--ac);margin-right:6px}.pn{font-size:12px;color:#b5bac1;white-space:nowrap}
+.pf{margin-top:10px;font-size:12px;color:#949ba4}.ispoll .rx{display:none}
+.pollopts{display:grid;gap:8px}.pollopts input{height:40px}.pollmulti{display:flex;gap:8px;align-items:center;margin-top:12px;color:#dbdee1;cursor:pointer}.pollmulti input{width:auto;height:auto}
+.vrec{display:flex;align-items:center;gap:12px;padding:12px;background:#1e1f22;border-radius:8px}.vrec .rd{width:12px;height:12px;border-radius:50%;background:#f23f43;animation:vpulse 1s infinite}.vrec.done{display:none}.vrec .vt{font-variant-numeric:tabular-nums;font-size:18px;flex:1}
+@keyframes vpulse{50%{opacity:.25}}.dg-b audio{width:100%;margin-top:8px}

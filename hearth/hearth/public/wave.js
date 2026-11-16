@@ -36,5 +36,5 @@ function dmIntro(box,count){
  if(!count&&!isReq(k)){
   const r=el('div','dmwave'),btn=el('button','btn','Wave to '+name+'!');btn.type='button';
   btn.onclick=()=>{if(ch!==k||!ws||ws.readyState!==1)return;btn.disabled=true;ws.send(JSON.stringify({channel:k,body:WAVE_TOKEN}))};
-  r.append(waveImg(110),btn);w.append(r)}
+  r.append(waveImg(110),btn);w.append(r);box.classList.add('dmempty')}
  box.append(w)}

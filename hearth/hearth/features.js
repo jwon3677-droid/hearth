@@ -5,7 +5,7 @@ module.exports=({app,q,need,err,X,MSG})=>{
  const FONTS=['sans','slab','chunky','script','round','block','serif','marker','tech','pixel','gothic','cursive'],
   FX=['solid','gradient','neon','toon','pop','gummy','prism'],HEX=/^#[0-9a-f]{6}$/i,
   // one emoji: flag, keycap, or pictographic (+skin tone / ZWJ sequence)
-  EMO=/^(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?)*)$/u;
+  EMO=/^(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?(?:[\u{E0020}-\u{E007E}]+\u{E007F})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?)*)$/u;
  const staffy=u=>['staff','admin'].includes(u.role);
  // staff/admin, or the owner of the server this channel belongs to
  const owns=async(u,ch)=>staffy(u)||(/^c\d+$/.test(ch)&&!!(await q('select 1 from channels c join servers s on s.id=c.server_id where c.id=$1 and s.owner_id=$2',[+ch.slice(1),u.id]))[0]);

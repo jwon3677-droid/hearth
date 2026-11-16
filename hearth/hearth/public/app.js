@@ -35,29 +35,24 @@ const IC={hash:'M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H
 const ic=(d,s=20)=>{const N='http://www.w3.org/2000/svg',v=document.createElementNS(N,'svg'),p=document.createElementNS(N,'path');v.setAttribute('viewBox','0 0 24 24');v.setAttribute('width',s);v.setAttribute('height',s);p.setAttribute('d',d);p.setAttribute('fill','currentColor');v.append(p);return v};
 const ib=(d,t,fn,s=20)=>{const b=el('button','ib');b.title=t;b.append(ic(d,s));b.onclick=e=>{e.stopPropagation();fn(e)};return b};
 // ---- Twemoji (Discord's emoji set) rendering
-const EMO=/(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?)*)/gu;
+const EMO=/(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?(?:[\u{E0020}-\u{E007E}]+\u{E007F})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?)*)/gu;
 const tw=s=>{let c=[...s].map(x=>x.codePointAt(0));if(!c.includes(0x200d))c=c.filter(x=>x!==0xfe0f);return 'https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/'+c.map(x=>x.toString(16)).join('-')+'.svg'};
 function rich(t){const f=document.createDocumentFragment();let i=0;t.replace(EMO,(m,o)=>{if(o>i)f.append(t.slice(i,o));const g=new Image();g.className='em';g.alt=m;g.draggable=false;g.loading='lazy';g.src=tw(m);g.onerror=()=>g.replaceWith(m);f.append(g);i=o+m.length;return m});if(i<t.length)f.append(t.slice(i));return f}
 const isBig=t=>!!t.trim()&&t.length<60&&!t.replace(EMO,'').trim();
-const CATS=[['😀',[[0x1F600,0x1F64F],[0x1F910,0x1F92F],[0x1F970,0x1F97A]],['☺️']],['👋',[[0x1F44A,0x1F450],[0x1F466,0x1F483],[0x1F918,0x1F91F]],['✌️']],['🐶',[[0x1F400,0x1F43E],[0x1F980,0x1F9AE]],[]],['🍕',[[0x1F32D,0x1F32F],[0x1F345,0x1F37F],[0x1F950,0x1F96B]],[]],['⚽',[[0x1F3A0,0x1F3CA],[0x1F680,0x1F6A4],[0x26BD,0x26BE]],[]],['❤️',[[0x1F493,0x1F49F],[0x1F4A2,0x1F4AF],[0x1F4B0,0x1F4FF]],['❤️','✔️','♥️']]];
-function pickerFill(emo,pk){const tabs=el('div','et'),grid=el('div','eg');emo.append(tabs,grid);
- const show=k=>{grid.replaceChildren();const list=[...CATS[k][2]];CATS[k][1].forEach(([a,b])=>{for(let c=a;c<=b;c++){const s=String.fromCodePoint(c);if(/\p{Emoji_Presentation}/u.test(s))list.push(s)}});
-  list.forEach(s=>{const b=el('span');b.append(rich(s));const g=b.firstChild;if(g&&g.tagName==='IMG')g.onerror=()=>b.remove();b.onclick=()=>pk(s);grid.append(b)});[...tabs.children].forEach((t,j)=>t.classList.toggle('on',j===k))};
- CATS.forEach((c,k)=>{const t=el('span');t.append(rich(c[0]));t.onclick=()=>show(k);tabs.append(t)});show(0)}
 // ---- messages
 const hue=s=>Math.abs([...s].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7))%360;
 let last=null;
 // render() lives in features.js
-function add(m,isNew){const box=$('#msgs'),dw=box.querySelector('.dmwave');dw&&dw.remove();const near=box.scrollHeight-box.scrollTop-box.clientHeight<150,d=new Date(m.ts),day=d.toDateString();
+function add(m,isNew){if(isNew&&m.uid===me.id&&String(m.channel).startsWith('dm')){const d=dmList.find(x=>dmKey(x.id)===m.channel);d&&delete d.tmp}const box=$('#msgs'),dw=box.querySelector('.dmwave');dw&&dw.remove();const near=box.scrollHeight-box.scrollTop-box.clientHeight<150,d=new Date(m.ts),day=d.toDateString();
  if(!last||last.day!==day){box.append(el('div','dd',day===new Date().toDateString()?'Today':d.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric',year:'numeric'})));last=null}
  const grp=last&&last.uid===m.uid&&d-last.t<3e5&&!m.rp;last={uid:m.uid,t:+d,day};box.append(render(m,grp,isNew));if(near||(isNew&&m.uid===me.id))box.scrollTop=box.scrollHeight}
 let showMem=true;
-async function load(){const b=$('#msgs'),tp=$('#top');b.replaceChildren();last=null;tp.replaceChildren();$('#bar').style.display=ch?'flex':'none';
+async function load(){const b=$('#msgs'),tp=$('#top');b.replaceChildren();b.classList.remove('dmempty');last=null;tp.replaceChildren();tp.append(navBtn());$('#bar').style.display=ch?'flex':'none';
  if(!ch){const e=el('div','empty'),i=new Image();i.src=MURI;i.width=150;e.append(i,el('h2','','Nothing here yet'),el('p','mu',cur==='home'?'Add a friend or pick a DM on the left.':'Pick a channel to start chatting.'));b.append(e);return}
  tp.append(ic(chName[0]==='@'?IC.at:IC.hash,22),el('b','',chName.replace(/^[#@] /,'')),el('span','grow'),ib(IC.pin,'Pinned Messages',showPins,22),ib(IC.users,'Toggle member list',()=>{showMem=!showMem;draw()},22));
  $('#in').placeholder='Message '+chName;const k=ch,ms=await api('messages?channel='+k);if(k!==ch)return;if(k.startsWith('dm')&&ms.length<50)dmIntro(b,ms.length);ms.forEach(m=>add(m));b.scrollTop=1e9}
-const open=(k,n)=>{ch=k;chName=n;if(k){delete unread[k];delete pings[k]}typers.clear();setReply(null);typShow();load().catch(fail);draw()};
-async function refresh(){const[sv,fr,dm]=await Promise.all([api('servers'),api('friends'),api('dms').catch(()=>({}))]);servers=sv;friends=fr;dmList=dm.list||[];dmReqs=dm.reqs||[];draw();members()}
+const open=(k,n)=>{dmList=dmList.filter(d=>!d.tmp||dmKey(d.id)===k);ch=k;chName=n;if(k&&window.mClose)document.body.classList.remove('m-nav');if(k){delete unread[k];delete pings[k]}typers.clear();setReply(null);typShow();load().catch(fail);draw()};
+async function refresh(){const[sv,fr,dm]=await Promise.all([api('servers'),api('friends'),api('dms').catch(()=>({}))]);servers=sv;friends=fr;dmList=[...(dm.list||[]),...dmList.filter(d=>d.tmp&&ch===dmKey(d.id)&&!(dm.list||[]).some(x=>x.id===d.id))];dmReqs=dm.reqs||[];draw();members()}
 let memTok=0;
 const APPCSS=`
 :root{--bg:#313338;--bg2:#2b2d31;--bg3:#383a40;--tx:#dbdee1;--mu:#949ba4}
@@ -92,7 +87,7 @@ function start(){theme();if(!$('#appcss')){const s=el('style');s.id='appcss';s.t
  rail.id='rail';side.id='side';main.id='main';mem.id='mem';top.id='top';msgs.id='msgs';bar.id='bar';i.id='in';i.rows=1;i.maxLength=1000;emo.id='emo';
  pickerFill(emo,s=>{i.value+=s;i.focus()});eb.append(rich('😀'));eb.onclick=e=>{e.stopPropagation();emo.style.display=emo.style.display==='flex'?'none':'flex'};document.addEventListener('click',e=>{if(!emo.contains(e.target))emo.style.display='none'});
  const send=()=>{if(ch&&i.value.trim()&&ws.readyState===1){ws.send(JSON.stringify({channel:ch,body:i.value,reply:replyTo?replyTo.id:undefined}));i.value='';setReply(null)}};
- const ab=el('button','ib'),fi=el('input');fi.type='file';fi.hidden=true;ab.type='button';ab.title='Upload a file (max 10MB)';ab.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 5a1 1 0 1 0-2 0v6H5a1 1 0 1 0 0 2h6v6a1 1 0 1 0 2 0v-6h6a1 1 0 1 0 0-2h-6V5z"/></svg>';ab.onclick=e=>{e.stopPropagation();fi.click()};fi.onchange=()=>{const f=fi.files[0];fi.value='';f&&uploadFile(f,i)};i.addEventListener('paste',e=>{const f=[...(e.clipboardData?e.clipboardData.files:[])][0];if(f){e.preventDefault();uploadFile(f,i)}});main.addEventListener('dragover',e=>e.preventDefault());main.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(f){e.preventDefault();uploadFile(f,i)}});
+ const ab=el('button','ib'),fi=el('input');fi.type='file';fi.hidden=true;ab.type='button';ab.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 5a1 1 0 1 0-2 0v6H5a1 1 0 1 0 0 2h6v6a1 1 0 1 0 2 0v-6h6a1 1 0 1 0 0-2h-6V5z"/></svg>';ab.classList.add('upbtn');ab.title='Upload, poll or voice message';ab.onclick=e=>{e.stopPropagation();uploadMenu(ab,fi)};fi.onchange=()=>{const f=fi.files[0];fi.value='';f&&uploadFile(f,i)};i.addEventListener('paste',e=>{const f=[...(e.clipboardData?e.clipboardData.files:[])][0];if(f){e.preventDefault();uploadFile(f,i)}});main.addEventListener('dragover',e=>e.preventDefault());main.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(f){e.preventDefault();uploadFile(f,i)}});
  bar.append(ab,fi,i,eb,emo);composer(i,bar,send);main.append(top,msgs,bar);a.append(rail,side,main,mem);root.append(a);connect();
  refresh().then(()=>{const s=servers[0];if(s){cur=s.id;const f=s.channels.find(c=>c.kind==='text');open(f?'c'+f.id:null,f?'# '+f.name:'');members()}else open(null,'')}).catch(fail);setInterval(()=>me&&refresh().catch(()=>{}),20000)}
 addEventListener('DOMContentLoaded',()=>api('me').then(u=>{me=u;start()}).catch(authView));
