@@ -10,9 +10,9 @@ const amime=(b,name)=>{const x=(/\.([a-z0-9]+)$/i.exec(name)||[])[1]||'',e=x.toL
  if(b[0]===0x1a&&b[1]===0x45&&b[2]===0xdf&&b[3]===0xa3&&['webm','weba'].includes(e))return'audio/webm';
  if(b.slice(4,8).toString('latin1')==='ftyp'&&['m4a','mp4','aac'].includes(e))return'audio/mp4';
  return null};
-module.exports=({app,q,need,err,X,F,bc})=>{
+module.exports=({app,q,need,err,X,F,bc,RL})=>{
  const raw=express.raw({type:()=>true,limit:MAX}),lim=rl({windowMs:6e4,max:12});
- const canEdit=async(req,id)=>(await q("select 1 from servers where id=$1 and (owner_id=$2 or exists(select 1 from users where id=$2 and role in ('staff','admin')))",[id,req.u.id]))[0];
+ const canEdit=async(req,id)=>(await q("select 1 from servers where id=$1 and (owner_id=$2 or exists(select 1 from users where id=$2 and role in ('staff','admin')))",[id,req.u.id]))[0]||await RL.has(req.u,id,'manage_server');
  app.put('/api/servers/:id/icon',need,lim,raw,async(req,res)=>{const id=+req.params.id,b=Buffer.isBuffer(req.body)?req.body:Buffer.alloc(0);
   if(!await canEdit(req,id))return err(res,'Owner only',403);if(b.length<100||b.length>MAX||!mime(b))return err(res,'Use a PNG/JPEG/WebP/GIF under 10MB');
   await q('update servers set icon=$1 where id=$2',[b,id]);res.json({})});

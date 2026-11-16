@@ -1,6 +1,6 @@
 const crypto=require('crypto');
 const UX=require('./ux');
-module.exports=({app,q,need,err,bad,wss})=>{
+module.exports=({app,q,need,err,bad,wss,RL})=>{
  const rooms={},vstart={};
  const can=async(uid,k,strict)=>{let m;
   if(m=/^dm(\d+)_(\d+)$/.exec(k)){const a=+m[1],b=+m[2];if(!(a<b&&(a===uid||b===uid)))return false;const o=a===uid?b:a;
@@ -29,19 +29,20 @@ module.exports=({app,q,need,err,bad,wss})=>{
  app.get('/api/servers',need,async(req,res)=>{const ids="(select server_id from members where user_id=$1 union select server_id from mod_servers where user_id=$1 and exists(select 1 from users where id=$1 and role in (\'staff\',\'admin\')))";
   const s=await q('select s.id,s.name,s.owner_id,s.invite,s.tag,s.tag_icon,s.tag_color,(s.icon is not null) has_icon,coalesce(s.settings,\'{}\'::jsonb) settings,(not exists(select 1 from members mm where mm.server_id=s.id and mm.user_id=$1)) is_mod from servers s where s.id in '+ids+' order by s.id',[req.u.id]);
   const c=await q('select c.id,c.server_id,c.name,c.kind from channels c where c.server_id in '+ids+' order by c.pos,c.id',[req.u.id]);
-  res.json(s.map(x=>({...x,channels:c.filter(y=>y.server_id===x.id)})))});
+  const pm=await RL.forServers(req.u,s);res.json(s.map(x=>({...x,perms:pm.get(x.id)||[],channels:c.filter(y=>y.server_id===x.id)})))});
  app.post('/api/servers',need,async(req,res)=>{const n=String(req.body.name||'').trim();
   if(n.length<2||n.length>30)return err(res,'Server name: 2-30 characters');if(!req.u.owner&&bad(n))return err(res,'That name isn\'t allowed.');
   if(!req.u.owner&&(await q('select count(*)::int n from servers where owner_id=$1',[req.u.id]))[0].n>=5)return err(res,'Max 5 servers per user');
   const[s]=await q('insert into servers(name,owner_id,invite) values($1,$2,$3) returning id',[n,req.u.id,crypto.randomBytes(5).toString('hex')]);
   await q('insert into members values($1,$2)',[s.id,req.u.id]);await q("insert into channels(server_id,name,kind) values($1,'general','text'),($1,'Voice','voice')",[s.id]);res.json({id:s.id})});
- app.post('/api/join',need,async(req,res)=>{const[s]=await q('select id from servers where invite=$1',[String(req.body.code||'').trim()]);if(!s)return err(res,'Invalid invite code',404);
+ app.post('/api/join',need,async(req,res)=>{const[s]=await q("select id,coalesce(settings,'{}'::jsonb) st from servers where lower(invite)=lower($1)",[String(req.body.code||'').trim().slice(0,40)]);if(!s)return err(res,'Invalid invite code',404);
+  if(s.st.inv_pause&&!(await q('select 1 from members where server_id=$1 and user_id=$2',[s.id,req.u.id]))[0])return err(res,'Invites to this server are paused right now.',403);
   await q('insert into members values($1,$2) on conflict do nothing',[s.id,req.u.id]);res.json({id:s.id})});
  app.delete('/api/servers/:id/leave',need,async(req,res)=>{const id=+req.params.id,[s]=await q('select owner_id from servers where id=$1',[id]);
   if(!s)return err(res,'Server not found',404);if(s.owner_id===req.u.id)return err(res,'Owners can\'t leave their own server');
-  await q('delete from members where server_id=$1 and user_id=$2',[id,req.u.id]);res.json({})});
+  await q('delete from members where server_id=$1 and user_id=$2',[id,req.u.id]);await RL.clear(id,req.u.id);res.json({})});
  app.post('/api/channels',need,async(req,res)=>{const{server_id:sid,name:n,kind}=req.body;
-  if(!(await q('select 1 from servers where id=$1 and (owner_id=$2 or exists(select 1 from users where id=$2 and role in (\'staff\',\'admin\')))',[+sid,req.u.id]))[0])return err(res,'Owner only',403);
+  if(!(await q('select 1 from servers where id=$1 and (owner_id=$2 or exists(select 1 from users where id=$2 and role in (\'staff\',\'admin\')))',[+sid,req.u.id]))[0]&&!await RL.has(req.u,+sid,'manage_channels'))return err(res,'You need the Manage Channels permission',403);
   if(!/^[A-Za-z0-9-]{1,20}$/.test(n||'')||(!req.u.owner&&bad(n)))return err(res,'Channel name: 1-20 letters, numbers or -');if(!['text','voice'].includes(kind))return err(res,'Bad kind');
   if(!req.u.owner&&(await q('select count(*)::int n from channels where server_id=$1',[+sid]))[0].n>=30)return err(res,'Too many channels');
   await q('insert into channels(server_id,name,kind) values($1,$2,$3)',[+sid,n,kind]);res.json({})});
@@ -84,5 +85,5 @@ module.exports=({app,q,need,err,bad,wss})=>{
   const on=[...wss().clients].some(c=>c.uid===u.id),{status:pst,...pu}=u;u.ps=on&&pst!=='invisible'?pst||'online':'offline';if(u.id===req.u.id)u.status=pst;else delete u.status;
   const[f]=await q('select status,by from friends where a=$1 and b=$2',[Math.min(u.id,req.u.id),Math.max(u.id,req.u.id)]);res.json({...u,friend:f||null})});
  app.get('/api/members/:sid',need,async(req,res)=>{if(!(await q('select 1 where exists(select 1 from members where server_id=$1 and user_id=$2) or exists(select 1 from users where id=$2 and role in (\'staff\',\'admin\'))',[+req.params.sid,req.u.id]))[0])return err(res,'No access',403);
-  const on=new Set([...wss().clients].map(c=>c.uid));res.json((await q('select u.id,u.username,u.role,u.theme,u.badges,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+',u.status,u.cstatus from users u join members m on m.user_id=u.id where m.server_id=$1 and not u.banned order by lower(u.username) limit 500',[+req.params.sid])).map(({status,...u})=>{const o=on.has(u.id)&&status!=='invisible';return{...u,online:o,ps:o?status||'online':'offline'}}))});
+  const on=new Set([...wss().clients].map(c=>c.uid));res.json(await RL.annotate(+req.params.sid,(await q('select u.id,u.username,u.role,u.theme,u.badges,u.nfont,u.neffect,u.ncolor,u.ncolor2,'+UX+',u.status,u.cstatus from users u join members m on m.user_id=u.id where m.server_id=$1 and not u.banned order by lower(u.username) limit 500',[+req.params.sid])).map(({status,...u})=>{const o=on.has(u.id)&&status!=='invisible';return{...u,online:o,ps:o?status||'online':'offline'}})))});
  return{can,ppl,to,leave,rooms,vstart,vbc,snap,dmSend}};

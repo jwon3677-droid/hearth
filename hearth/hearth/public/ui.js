@@ -45,7 +45,7 @@ function addServerDialog(){const D=dialog();
   i.onkeydown=e=>{if(e.key==='Enter')go.click()};D.foot.append(btn('Back','lnk',start),go);i.focus();i.select()};
  const joinStep=()=>{D.set('Join a server','Enter an invite code below to join an existing server.');
   const i=el('input');i.placeholder='e.g. 4f9a1c2b7d';const f=field('Invite code',i);D.body.append(f);
-  const go=btn('Join Server','',async()=>{const code=i.value.trim().split('/').pop();if(!code)return f.err('Enter an invite code');go.disabled=true;f.err();
+  const go=btn('Join Server','',async()=>{const code=i.value.trim().split(/[?#]/)[0].replace(/\/+$/,'').split('/').pop();if(!code)return f.err('Enter an invite code');go.disabled=true;f.err();
    try{const r=await api('join','POST',{code});await refresh();D.close();goServer(r.id)}catch(e){f.err(e.message);go.disabled=false}});
   i.onkeydown=e=>{if(e.key==='Enter')go.click()};D.foot.append(btn('Back','lnk',start),go);i.focus()};
  start()}
@@ -76,7 +76,7 @@ function serverMenu(s,anchor){const r=anchor.getBoundingClientRect(),it=[['Invit
 async function stopMod(s){try{if(room&&room.server_id===s.id)vleave();await api('staff/moderate','POST',{id:s.id,on:false});await refresh();if(cur===s.id)goHome()}catch(e){fail(e)}}
 
 // ---------- server settings (owner, or staff with admin access) ----------
-function serverSettings(sid,tab='ov'){const D=dialog('640px');D.box.classList.add('wide');D.foot.style.display='none';const S=()=>servers.find(x=>x.id===sid);if(!S())return D.close();
+function serverSettingsOld(sid,tab='ov'){const D=window.__ssHost||dialog('640px');D.box.classList.add('wide');D.foot.style.display='none';const S=()=>servers.find(x=>x.id===sid);if(!S())return D.close();
  const tabs=el('div','sstabs'),pane=el('div','sspane');D.body.append(tabs,pane);
  const T=[['ov','Overview'],['nt','Notifications'],['md','Moderation'],['cm','Community'],['ch','Channels'],['mb','Members'],['dz','Danger Zone']],go=k=>{tab=k;draw1()};
  const run=async(fn,msg)=>{try{await fn();await refresh();msg&&toast(msg,1);draw1()}catch(e){fail(e)}};
@@ -307,9 +307,9 @@ async function staffPanel(tab='ov'){const D=dialog('860px');D.box.classList.add(
 // ---------- members list ----------
 async function members(){const p=$('#mem');if(!p)return;const sid=cur,tok=++memTok;if(sid==='home'){p.replaceChildren();return}
  const l=await api('members/'+sid).catch(()=>null);if(!l||tok!==memTok)return;memCache=l;const seen=new Set(),f=document.createDocumentFragment();
- [['Staff',u=>['admin','staff'].includes(u.role)],['Online',u=>u.online],['Offline',()=>true]].forEach(([n,fn])=>{const us=l.filter(u=>!seen.has(u.id)&&fn(u));us.forEach(u=>seen.add(u.id));if(!us.length)return;f.append(el('div','mh',n+' — '+us.length));
+ [['Staff',u=>['admin','staff'].includes(u.role)],...(window.hoistGroups?hoistGroups(l):[]),['Online',u=>u.online],['Offline',()=>true]].forEach(([n,fn])=>{const us=l.filter(u=>!seen.has(u.id)&&fn(u));us.forEach(u=>seen.add(u.id));if(!us.length)return;f.append(el('div','mh',n+' — '+us.length));
   us.forEach(u=>{const r=el('div','mr'+(u.online?'':' off')),w=el('div','st'+stc(u.ps)),t=THEMES[u.theme]||THEMES.midnight,nm=el('span','nm',u.username),tx=el('div','mtx');
-   (u.online||u.ncolor||(u.neffect&&u.neffect!=='solid'))&&nameFx(nm,u,t[0]);w.append(av(u.id,u.username,u.theme,u.adeco||null));const top=el('div','mtop');top.append(nm);{const tc=tagChip(u.tg);tc&&top.append(tc)}(u.badges||[]).slice(0,1).forEach(k=>BADGES[k]&&top.append(badge(k)));tx.append(top);
+   (u.online||u.rc||u.ncolor||(u.neffect&&u.neffect!=='solid'))&&nameFx(nm,u,t[0]);w.append(av(u.id,u.username,u.theme,u.adeco||null));const top=el('div','mtop');top.append(nm);{const tc=tagChip(u.tg);tc&&top.append(tc)}(u.badges||[]).slice(0,1).forEach(k=>BADGES[k]&&top.append(badge(k)));tx.append(top);
    if(u.cstatus&&u.online){const s=el('div','mst');s.append(rich(u.cstatus));tx.append(s)}
    r.append(w,tx);r.onclick=e=>profile(u.id,e);r.oncontextmenu=e=>{e.preventDefault();userMenu(u,e.clientX,e.clientY)};f.append(r)})});
  p.replaceChildren(f)}
@@ -435,7 +435,7 @@ function userMenu(u,x,y){
  }else it.push('sep');
  it.push(['Copy User ID',()=>{copyTxt(String(id));toast('User ID copied',1)}]);
  ctxOpen(x,y,it)}
-(()=>{const s=document.createElement('style');s.textContent='#ctx{min-width:210px}.ci small{font-size:12px;font-weight:400;color:#949ba4;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ci:hover small{color:#ffffffcc}.cvol{padding:6px 8px 8px;color:#b5bac1;font-weight:600}.cvol input{outline:none;box-shadow:none;padding:0;border:0;background:none;height:20px;margin:4px 0 0;accent-color:#5865f2;cursor:pointer}.mtop .stg{flex:none}';document.head.append(s)})();
+(()=>{const s=document.createElement('style');s.textContent='#ctx{min-width:210px}.ci small{font-size:12px;font-weight:400;color:var(--t4,#949ba4);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ci:hover small{color:#ffffffcc}.cvol{padding:6px 8px 8px;color:var(--t3,#b5bac1);font-weight:600}.cvol input{outline:none;box-shadow:none;padding:0;border:0;background:none;height:20px;margin:4px 0 0;accent-color:#5865f2;cursor:pointer}.mtop .stg{flex:none}';document.head.append(s)})();
 
 // open a DM with anyone; strangers' first message goes to their Message Requests
 function openDM(u){const k=dmKey(u.id);if(u.id!==me.id&&!dmKnown(k))dmList.push({id:u.id,username:u.username,theme:u.theme||'midnight',adeco:u.adeco||null,ps:'offline',tmp:1});cur='home';open(k,'@ '+u.username);members()}

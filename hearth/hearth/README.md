@@ -53,3 +53,19 @@ New: `manage.js`, `public/settings.js`. New table `mod_servers` and column `user
 ## Voice relay (optional)
 Voice uses public STUN servers. If people on strict networks (some school/work/mobile connections) can't hear each other, add a TURN relay:
 set `TURN_URL` (e.g. `turn:your-host:3478`, comma-separate several), `TURN_USER` and `TURN_PASS` as env vars. Clients pick them up from `/api/ice`.
+
+## v7: themes, badge cards, server profiles, invite links
+- **Themes** (User settings > Appearance): 13 built-in themes plus a Custom theme (pick background, text and accent, or hit "Surprise me"). Themes recolor the whole app through CSS variables (`--p0..--p6`, `--t1..--t5`); the toggle below the grid decides whether the theme's accent replaces your profile color.
+- **Badge hover cards**: hovering a badge animates it and opens an animated card (tap on phones) instead of the browser tooltip. Edit text in `BD` in `public/profile2.js`.
+- **Server tag popout**: click any server tag to see the server's card (banner, icon, online/member counts, founded date, traits, description). Members get **Adopt Tag**, non-members get **Join** (disabled while invites are paused).
+- **Server settings** now open as a full screen like Discord: Server Profile (name, icon, banner color or image, up to 5 traits, description, live preview), Server Tag, Invites, General, Notifications, Members, Channels, Safety Setup, Community, Delete Server. The server name menu has the matching entries.
+- **Invite links**: `https://<your-site>/invite/<code>`. Owners can set a custom code in Server Settings > Invites. Pasting a full link into Join a Server also works. "Pause invites" is now enforced.
+- Fixed the phone layout where a reply's preview text overlapped the message below it.
+New DB columns (`servers.banner`, `servers.created`) are created automatically. No new npm packages.
+
+## Roles
+Server Settings > Roles (owner, staff, or anyone with **Manage Roles**). Up to 25 roles per server, each with a name, color, a "show separately in member list" option and permissions: Administrator, Manage Server, Manage Roles, Manage Channels, Manage Messages, Kick Members, Mention @everyone.
+- Hierarchy: roles higher in the list outrank lower ones. You can only edit, give or take roles below your own highest role, and only grant permissions you have. Owner and site staff ignore the hierarchy.
+- Members tab: give or take roles per member (and remove members if you can kick). Names use the color of their highest colored role (unless they picked their own name color). Hoisted roles get their own group in the member list.
+- The server's settings screen, channel tools, server tag, icon/banner uploads, invites, pins, deleting other people's messages and @everyone all check these permissions on the server, not just in the UI.
+- New tables (`roles`, `member_roles`) are created automatically on start.

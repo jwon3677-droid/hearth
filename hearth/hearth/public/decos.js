@@ -27,7 +27,7 @@ const st=document.createElement('style');st.textContent=`
 @keyframes dfl{50%{transform:scaleY(1.25) translateY(-1px)}}.dflick{transform-box:fill-box;transform-origin:50% 100%;animation:dfl .9s ease-in-out infinite}
 @keyframes dtw{50%{opacity:.25}}.dtw{animation:dtw 1.6s ease-in-out infinite}@keyframes dwb{to{stroke-dashoffset:-18}}.dwob{animation:dwb 1.4s linear infinite}
 .pf-reduce .dec *{animation:none!important}
-.dgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.dtile{display:grid;justify-items:center;gap:6px;padding:14px 4px 8px;background:#1e1f22;border:2px solid transparent;border-radius:8px;color:#dbdee1;font-size:12px;font-weight:700}.dtile:hover{background:#2a2c31}.dtile.on{border-color:var(--ac)}.dtile .av{width:48px;height:48px;font-size:18px;cursor:inherit}
+.dgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.dtile{display:grid;justify-items:center;gap:6px;padding:14px 4px 8px;background:var(--p1,#1e1f22);border:2px solid transparent;border-radius:8px;color:var(--t2,#dbdee1);font-size:12px;font-weight:700}.dtile:hover{background:#2a2c31}.dtile.on{border-color:var(--ac)}.dtile .av{width:48px;height:48px;font-size:18px;cursor:inherit}
 /* whole-card profile theme */
 .pcd.pct{background:linear-gradient(180deg,color-mix(in srgb,var(--pa) 78%,#0d0e10) 0,color-mix(in srgb,var(--pb) 70%,#0b0c0e) 100%)}
 .pcd.pct .pav{background:transparent;--sb:color-mix(in srgb,var(--pa) 72%,#0d0e10)}.pcd.pct .pav .st{--sb:color-mix(in srgb,var(--pa) 72%,#0d0e10)}

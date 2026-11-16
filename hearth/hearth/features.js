@@ -1,14 +1,14 @@
 // Hearth features: display-name styles, @mentions, replies, edit/delete, reactions, pins.
 // Everything the client shows (mention pills, reaction counts, name styles) is validated or resolved here.
 const UX=require('./ux');
-module.exports=({app,q,need,err,X,MSG})=>{
+module.exports=({app,q,need,err,X,MSG,RL})=>{
  const FONTS=['sans','slab','chunky','script','round','block','serif','marker','tech','pixel','gothic','cursive'],
   FX=['solid','gradient','neon','toon','pop','gummy','prism'],HEX=/^#[0-9a-f]{6}$/i,
   // one emoji: flag, keycap, or pictographic (+skin tone / ZWJ sequence)
   EMO=/^(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?(?:[\u{E0020}-\u{E007E}]+\u{E007F})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])?)*)$/u;
  const staffy=u=>['staff','admin'].includes(u.role);
  // staff/admin, or the owner of the server this channel belongs to
- const owns=async(u,ch)=>staffy(u)||(/^c\d+$/.test(ch)&&!!(await q('select 1 from channels c join servers s on s.id=c.server_id where c.id=$1 and s.owner_id=$2',[+ch.slice(1),u.id]))[0]);
+ const owns=async(u,ch,perm='manage_messages')=>{if(staffy(u))return true;if(!/^c\d+$/.test(ch))return false;const[c]=await q('select s.id,s.owner_id from channels c join servers s on s.id=c.server_id where c.id=$1',[+ch.slice(1)]);return !!c&&(c.owner_id===u.id||await RL.has(u,c.id,perm))};
 
  // ---- mentions: resolved server-side so nobody can fake a ping
  const parse=async(body,ch,u,prev)=>{const names=new Set();let ev=false;
@@ -17,7 +17,7 @@ module.exports=({app,q,need,err,X,MSG})=>{
   const map={};
   if(names.size){const pp=await X.ppl(ch);(await q('select id,lower(username) n from users where id=any($1) and lower(username)=any($2) and not banned',[pp,[...names]])).forEach(r=>{if(r.id!==u.id)map[r.n]=r.id});
    if(prev)for(const n of names)if(!map[n]&&prev[n]&&prev[n]!==u.id&&pp.includes(prev[n]))map[n]=prev[n]}   // editing a message keeps pings for people who renamed since
-  return{ids:[...new Set(Object.values(map))],ev:ev&&await owns(u,ch),map}};
+  return{ids:[...new Set(Object.values(map))],ev:ev&&await owns(u,ch,'mention_everyone'),map}};
 
  // ---- attach mention names, reply preview and reactions to message rows
  const rxOf=async ids=>{const out={};if(!ids.length)return out;
