@@ -165,3 +165,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 /* the app manages its own scrolling; the page itself must never scroll */
 html:has(#app),html:has(#app) body{height:100%;overflow:hidden}
 #app{overflow:hidden}
+
+/* ---- scrollbars: no bright default scroller anywhere; thin dark ones like Discord ---- */
+:root{color-scheme:dark}
+html,body{height:100%;overflow:hidden}                 /* the page itself never scrolls (auth screens that need it override below) */
+body:has(#aw){overflow:auto}
+*{scrollbar-width:thin;scrollbar-color:#1a1b1e #2b2d31}
+#msgs{scrollbar-color:#1a1b1e #2b2d31;overscroll-behavior:contain}
+#rail,#side .sbody,#mem{scrollbar-color:transparent transparent}        /* side lists: scrollbar only shows while hovering */
+#side .sbody:hover,#mem:hover{scrollbar-color:#1a1b1e transparent}
+.egs{scrollbar-color:#1a1b1e transparent;overscroll-behavior:contain}
+textarea,input{scrollbar-color:#1a1b1e transparent}

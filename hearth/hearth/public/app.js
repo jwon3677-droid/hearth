@@ -43,7 +43,7 @@ const isBig=t=>!!t.trim()&&t.length<60&&!t.replace(EMO,'').trim();
 const hue=s=>Math.abs([...s].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7))%360;
 let last=null;
 // render() lives in features.js
-function add(m,isNew){if(isNew&&m.uid===me.id&&String(m.channel).startsWith('dm')){const d=dmList.find(x=>dmKey(x.id)===m.channel);d&&delete d.tmp}const box=$('#msgs'),dw=box.querySelector('.dmwave');dw&&dw.remove();const near=box.scrollHeight-box.scrollTop-box.clientHeight<150,d=new Date(m.ts),day=d.toDateString();
+function add(m,isNew){if(isNew&&m.uid===me.id&&String(m.channel).startsWith('dm')){const d=dmList.find(x=>dmKey(x.id)===m.channel);d&&delete d.tmp}const box=$('#msgs'),dw=box.querySelector('.dmwave');dw&&dw.remove();const near=isNew&&box.scrollHeight-box.scrollTop-box.clientHeight<150,d=new Date(m.ts),day=d.toDateString();
  if(!last||last.day!==day){box.append(el('div','dd',day===new Date().toDateString()?'Today':d.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric',year:'numeric'})));last=null}
  const grp=last&&last.uid===m.uid&&d-last.t<3e5&&!m.rp;last={uid:m.uid,t:+d,day};box.append(render(m,grp,isNew));if(near||(isNew&&m.uid===me.id))box.scrollTop=box.scrollHeight}
 let showMem=true;
@@ -52,7 +52,8 @@ async function load(){const b=$('#msgs'),tp=$('#top');b.replaceChildren();b.clas
  tp.append(ic(chName[0]==='@'?IC.at:IC.hash,22),el('b','',chName.replace(/^[#@] /,'')),el('span','grow'),ib(IC.pin,'Pinned Messages',showPins,22),ib(IC.users,'Toggle member list',()=>{showMem=!showMem;draw()},22));
  $('#in').placeholder='Message '+chName;const k=ch,ms=await api('messages?channel='+k);if(k!==ch)return;if(k.startsWith('dm')&&ms.length<50)dmIntro(b,ms.length);ms.forEach(m=>add(m));b.scrollTop=1e9}
 const open=(k,n)=>{dmList=dmList.filter(d=>!d.tmp||dmKey(d.id)===k);ch=k;chName=n;if(k&&window.mClose)document.body.classList.remove('m-nav');if(k){delete unread[k];delete pings[k]}typers.clear();setReply(null);typShow();load().catch(fail);draw()};
-async function refresh(){const[sv,fr,dm]=await Promise.all([api('servers'),api('friends'),api('dms').catch(()=>({}))]);servers=sv;friends=fr;dmList=[...(dm.list||[]),...dmList.filter(d=>d.tmp&&ch===dmKey(d.id)&&!(dm.list||[]).some(x=>x.id===d.id))];dmReqs=dm.reqs||[];draw();members()}
+let refSig='';
+async function refresh(quiet){const[sv,fr,dm]=await Promise.all([api('servers'),api('friends'),api('dms').catch(()=>({}))]);if(quiet){const sg=JSON.stringify([sv,fr,dm.list,dm.reqs]);if(sg===refSig)return;refSig=sg}servers=sv;friends=fr;dmList=[...(dm.list||[]),...dmList.filter(d=>d.tmp&&ch===dmKey(d.id)&&!(dm.list||[]).some(x=>x.id===d.id))];dmReqs=dm.reqs||[];draw();members()}
 let memTok=0;
 const APPCSS=`
 :root{--bg:#313338;--bg2:#2b2d31;--bg3:#383a40;--tx:#dbdee1;--mu:#949ba4}
@@ -89,5 +90,5 @@ function start(){theme();if(!$('#appcss')){const s=el('style');s.id='appcss';s.t
  const send=()=>{if(ch&&i.value.trim()&&ws.readyState===1){ws.send(JSON.stringify({channel:ch,body:i.value,reply:replyTo?replyTo.id:undefined}));i.value='';setReply(null)}};
  const ab=el('button','ib'),fi=el('input');fi.type='file';fi.hidden=true;ab.type='button';ab.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 5a1 1 0 1 0-2 0v6H5a1 1 0 1 0 0 2h6v6a1 1 0 1 0 2 0v-6h6a1 1 0 1 0 0-2h-6V5z"/></svg>';ab.classList.add('upbtn');ab.title='Upload, poll or voice message';ab.onclick=e=>{e.stopPropagation();uploadMenu(ab,fi)};fi.onchange=()=>{const f=fi.files[0];fi.value='';f&&uploadFile(f,i)};i.addEventListener('paste',e=>{const f=[...(e.clipboardData?e.clipboardData.files:[])][0];if(f){e.preventDefault();uploadFile(f,i)}});main.addEventListener('dragover',e=>e.preventDefault());main.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(f){e.preventDefault();uploadFile(f,i)}});
  bar.append(ab,fi,i,eb,emo);composer(i,bar,send);main.append(top,msgs,bar);a.append(rail,side,main,mem);root.append(a);connect();
- refresh().then(()=>{const s=servers[0];if(s){cur=s.id;const f=s.channels.find(c=>c.kind==='text');open(f?'c'+f.id:null,f?'# '+f.name:'');members()}else open(null,'')}).catch(fail);setInterval(()=>me&&refresh().catch(()=>{}),20000)}
+ refresh().then(()=>{const s=servers[0];if(s){cur=s.id;const f=s.channels.find(c=>c.kind==='text');open(f?'c'+f.id:null,f?'# '+f.name:'');members()}else open(null,'')}).catch(fail);setInterval(()=>!document.hidden&&me&&refresh(true).catch(()=>{}),20000)}
 addEventListener('DOMContentLoaded',()=>api('me').then(u=>{me=u;start()}).catch(authView));

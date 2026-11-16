@@ -44,7 +44,7 @@ function mClose(){document.body.classList.remove('m-nav');if(MQ.matches&&typeof 
  addEventListener('click',e=>{if(!MQ.matches)return;const b=document.body.classList;if((b.contains('m-nav')||b.contains('m-mem'))&&e.target.closest('#main')&&!e.target.closest('.navbtn,#top .ib')){e.stopPropagation();e.preventDefault();mClose()}},true);
  // keep the backdrop in sync with the member drawer; close the nav drawer when moving to a wider window
  const sync=()=>{const a=document.querySelector('#app');document.body.classList.toggle('m-mem',!!(a&&MQ.matches&&!a.classList.contains('nomem')))};
- new MutationObserver(()=>{const a=document.querySelector('#app');if(a&&!a._mo){a._mo=1;new MutationObserver(sync).observe(a,{attributes:true,attributeFilter:['class']})}sync()}).observe(document.body,{childList:true,subtree:true});
+ new MutationObserver(()=>{const a=document.querySelector('#app');if(a&&!a._mo){a._mo=1;new MutationObserver(sync).observe(a,{attributes:true,attributeFilter:['class']})}sync()}).observe(document.getElementById('root')||document.body,{childList:true});
  MQ.addEventListener('change',()=>{document.body.classList.remove('m-nav');if(MQ.matches&&typeof showMem!=='undefined'){showMem=false}sync()});
  if(MQ.matches)showMem=false;
  // swipe from the left edge opens the menu, swipe left closes it
