@@ -31,6 +31,6 @@ module.exports=({app,q,need,err,wss,RL})=>{
  app.put('/api/servers/:id/banner',need,raw,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);const b=Buffer.isBuffer(req.body)?req.body:Buffer.alloc(0);
   if(b.length<100||!mime(b))return err(res,'Use a PNG/JPEG/WebP/GIF under 5MB');await q('update servers set banner=$1 where id=$2',[b,id]);ping();res.json({})});
  app.delete('/api/servers/:id/banner',need,async(req,res)=>{const id=+req.params.id;if(!await mgr(req.u,id))return err(res,'Owner only',403);await q('update servers set banner=null where id=$1',[id]);ping();res.json({})});
- app.get('/api/servers/:id/banner',need,async(req,res)=>{const[s]=await q('select banner from servers where id=$1',[+req.params.id]);if(!s||!s.banner)return res.sendStatus(404);
-  res.type(mime(s.banner)).set({'Cache-Control':'private, max-age=300','X-Content-Type-Options':'nosniff'}).send(s.banner)});
+ app.get('/api/servers/:id/banner',need,async(req,res)=>{if(await require('./imgcache')(q,req,res,'select md5(banner) h from servers where id=$1',[+req.params.id]))return;const[s]=await q('select banner from servers where id=$1',[+req.params.id]);if(!s||!s.banner)return res.sendStatus(404);
+  res.type(mime(s.banner)).set({'Cache-Control':'private, max-age=3600, stale-while-revalidate=86400','X-Content-Type-Options':'nosniff'}).send(s.banner)});
 };

@@ -4,7 +4,7 @@ function savePrefs(){try{localStorage.setItem('hearth.prefs',JSON.stringify(PREF
 function applyPrefs(){const c=document.body.classList;c.toggle('pf-small',PREFS.fs==='small');c.toggle('pf-large',PREFS.fs==='large');c.toggle('pf-compact',!!PREFS.compact);c.toggle('pf-reduce',!!PREFS.reduce);c.toggle('pf-nofx',!!PREFS.nofx);c.toggle('pf-hc',!!PREFS.hc);c.toggle('pf-dys',!!PREFS.dyslexic);c.toggle('pf-ul',!!PREFS.underline);c.toggle('pf-nolink',!PREFS.link_prev);c.toggle('pf-noimg',!PREFS.imgprev);c.toggle('pf-stream',!!PREFS.streamer&&!!PREFS.sHideInv);c.toggle('pf-streaminfo',!!PREFS.streamer&&!!PREFS.sHideInfo);c.toggle('pf-nosticky',PREFS.sticky==='off');const r=document.documentElement.style;r.setProperty('--fpx',PREFS.fpx+'px');r.setProperty('--gap',PREFS.gap+'px');r.setProperty('--sat',PREFS.sat+'%');document.body.style.zoom=PREFS.zoom/100;window.applyHT&&applyHT()}
 applyPrefs();
 let _ac;function notifyPing(m){try{
- if(PREFS.sound&&PREFS.msgsound&&!(me&&me.status==='dnd')&&!(PREFS.streamer&&PREFS.sNoSound)){_ac=_ac||new(window.AudioContext||window.webkitAudioContext)();const o=_ac.createOscillator(),g=_ac.createGain();o.type='sine';o.frequency.setValueAtTime(880,_ac.currentTime);o.frequency.exponentialRampToValueAtTime(1320,_ac.currentTime+.09);g.gain.setValueAtTime(.08,_ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,_ac.currentTime+.25);o.connect(g).connect(_ac.destination);o.start();o.stop(_ac.currentTime+.26)}
+ window.SFX&&SFX.play('ping')
  if(PREFS.desk&&!(PREFS.streamer&&PREFS.sNoNotif)&&document.hidden&&window.Notification&&Notification.permission==='granted'&&!(me&&me.status==='dnd'))new Notification(dn(m),{body:(m.body===WAVE_TOKEN?'👋 Waved at you':tokText(String(m.body))).slice(0,120),icon:'/favicon.svg',tag:'hearth-'+m.channel})}catch{}}
 
 function userSettings(tab='acct'){const old=$('.ep');old&&old.remove();
@@ -18,7 +18,11 @@ function userSettings(tab='acct'){const old=$('.ep');old&&old.remove();
  const rng=(k,label,sub,min,max,step,fmt)=>{const w=el('div','rng'),h=el('div','rh'),v=el('span','mu',(fmt||(x=>x))(PREFS[k])),i=el('input');i.type='range';i.min=min;i.max=max;i.step=step||1;i.value=PREFS[k];h.append(el('b','',label),v);i.oninput=()=>{PREFS[k]=+i.value;v.textContent=(fmt||(x=>x))(PREFS[k]);savePrefs()};w.append(h);if(sub)w.append(el('small','mu',sub));w.append(i);return w};
  const card=(...n)=>{const c=el('div','card2');c.append(...n);return c};
  const T=[['acct','My Account'],['prof','My Profile'],['priv','Privacy & Safety'],['app','Appearance'],['acc','Accessibility'],['chat','Chat'],['notif','Notifications'],['voice','Voice & Video'],['keys','Keybinds'],['lang','Language & Time'],['stream','Streamer Mode'],['adv','Advanced']];
- const nav=()=>{L.replaceChildren(el('div','eph','User Settings'));T.forEach(([k,n])=>{const b=el('button','usb'+(tab===k?' on':''),n);b.type='button';b.onclick=()=>{if(k==='prof'){kill();editProfile();return}tab=k;nav();draw1()};L.append(b)});L.append(el('div','grow'),btn('Log Out','g wide',()=>{kill();logout()}))};
+ const GR=[['User Settings',['acct','prof','priv','notif']],['Experience',['voice','app','acc','chat','keys','lang']],['More',['stream','adv']]],NM=Object.fromEntries(T);let QS='';
+ const nav=()=>{L.replaceChildren();const hd=el('div','usph'),ab=el('div','usav'),tx=el('div','usht');ab.append(av(me.id,me.username,me.theme));tx.append(el('b','',dn(me)),el('small','mu','Edit Profile \u270e'));hd.append(ab,tx);hd.onclick=()=>{kill();editProfile()};
+  const q=el('input','usq');q.placeholder='Search';q.value=QS;const lst=el('div','uslist');
+  const fill=()=>{lst.replaceChildren();const f=QS.trim().toLowerCase();GR.forEach(([g,ks])=>{const ok=ks.filter(k=>!f||NM[k].toLowerCase().includes(f));if(!ok.length)return;lst.append(el('div','ush2',g));ok.forEach(k=>{const b=el('button','usb'+(tab===k?' on':''),NM[k]);b.type='button';b.onclick=()=>{if(k==='prof'){kill();editProfile();return}tab=k;fill();draw1()};lst.append(b)})})};
+  q.oninput=()=>{QS=q.value;fill()};fill();L.append(hd,q,lst,el('div','grow'),btn('Log Out','g wide',()=>{kill();logout()}))};
  const accountPane=()=>{pane.append(el('h2','','My Account'));
    const un=el('input');un.value=me.username;un.maxLength=20;const pw=el('input');pw.type='password';pw.placeholder='Current password';pw.autocomplete='current-password';const f1=field('Username',un),f2=field('Current password',pw);
    const b1=btn('Change Username','',async()=>{f1.err();f2.err();try{const r=await api('account/username','PUT',{username:un.value.trim(),password:pw.value});me.username=r.username;pw.value='';draw();members();load().catch(()=>{});toast('Username updated',1)}catch(e){(/password/i.test(e.message)?f2:f1).err(e.message)}});
@@ -62,7 +66,7 @@ function userSettings(tab='acct'){const old=$('.ep');old&&old.remove();
      pref('desk','Desktop notifications','Show a notification when you\'re pinged and Hearth is in the background.',async v=>{if(!v)return;if(!window.Notification){PREFS.desk=false;savePrefs();throw Error('This browser doesn\'t support notifications.')}
       const p=Notification.permission==='granted'?'granted':await Notification.requestPermission();if(p!=='granted'){PREFS.desk=false;savePrefs();throw Error('Notifications are blocked. Allow them in your browser\'s site settings.')}}),
      pref('showTabPing','Show ping count in the tab title',''),pref('unreadBadge','Show unread indicators',''),pref('flashTaskbar','Flash the tab on pings','')),
-    card(sec('Sounds'),pref('callsound','Call & voice join/leave sounds',''),pref('deafsound','Mute/deafen sounds','')),
+    card(sec('Sounds'),pref('callsound','Voice join & leave sounds','When you or someone in your voice channel joins or leaves.'),pref('deafsound','Mute & deafen sounds','A little blip when you mute, unmute, deafen or undeafen.'),pref('uisound','Interface sounds','Message-sent tick, plus success and error sounds.'),rng('sfxvol','Sound effects volume','',0,100,5,x=>x+'%'),(()=>{const w=el('div','sfxp');w.append(el('small','mu','Preview'));const r=el('div','sacts');(window.SFX?SFX.list:[]).forEach(([k,n])=>r.append(btn(n,'g sm',()=>SFX.test(k))));w.append(r);return w})()),
     el('small','mu','Set Do Not Disturb from the menu when you click your name at the bottom left.'))},
  voice:()=>{pane.append(el('h2','','Voice & Video'));const ins=el('select','sel2'),outs=el('select','sel2'),cams=el('select','sel2');
    const fill=async()=>{try{const d=await navigator.mediaDevices.enumerateDevices();[[ins,'audioinput','inDev'],[outs,'audiooutput','outDev'],[cams,'videoinput','camDev']].forEach(([S,kind,k])=>{S.replaceChildren();const o0=el('option','','Default');o0.value='';S.append(o0);d.filter(x=>x.kind===kind).forEach(x=>{const o=el('option','',x.label||kind);o.value=x.deviceId;S.append(o)});S.value=PREFS[k];S.onchange=()=>{PREFS[k]=S.value;savePrefs()}})}catch{}};fill();
@@ -111,4 +115,22 @@ function userSettings(tab='acct'){const old=$('.ep');old&&old.remove();
 .sstabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--p5,#3f4147)}.sst{background:none;color:var(--t3,#b5bac1);padding:8px 12px;border-radius:6px 6px 0 0;font-weight:600}.sst:hover{color:#fff}.sst.on{color:#fff;box-shadow:inset 0 -2px 0 var(--ac)}
 .sspane{display:grid;gap:12px}.modnote{background:#c4491f22;border:1px solid #c4491f66;border-radius:8px;padding:10px 12px;color:#ffd2c2;font-size:13px}
 .rb.modrb{position:relative;box-shadow:0 0 0 2px #c4491f}.modmk{position:absolute;right:-4px;bottom:-4px;font-style:normal;font-size:12px;background:var(--p1,#1e1f22);border-radius:50%;width:18px;height:18px;display:grid;place-items:center}
+
+/* ---- v9 settings look ---- */
+.ep.us{grid-template-columns:minmax(230px,32vw) minmax(0,1fr);background:var(--p3,#313338)}
+.ep.us .epl{background:var(--p2,#2b2d31);align-items:flex-end;padding:36px 8px 24px 20px;gap:8px}.ep.us .epl>*{width:min(228px,100%)}
+.usph{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;cursor:pointer}.usph:hover{background:var(--p3b,#35373c)}.usav{width:40px;height:40px;flex:none}.usav .av{width:40px;height:40px;font-size:16px}.usht{display:grid;min-width:0}.usht b{color:var(--t1,#f2f3f5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.usht small{font-size:12px}
+.usq{background:var(--p1,#1e1f22)!important;border:0;border-radius:6px;padding:8px 10px;color:var(--t2,#dbdee1);outline:none;margin-bottom:4px}.usq:focus{box-shadow:0 0 0 2px var(--ac)}
+.uslist{display:grid;gap:2px;align-content:start}.ush2{font-size:12px;font-weight:700;color:var(--t4,#949ba4);padding:16px 10px 4px}.ush2:first-child{padding-top:6px}
+.ep.us .usb{font-size:15px;font-weight:500;padding:7px 10px;color:var(--t3,#b5bac1)}.ep.us .usb.on{background:var(--p4,#383a40);color:#fff}
+.ep.us .usr{background:var(--p3,#313338);padding:60px 48px 100px}.ep.us .usp{max-width:740px;gap:0}.ep.us .usp h2{font-size:22px;margin:0 0 24px}
+.ep.us .card2{background:none;border-radius:0;padding:0 0 24px;margin-bottom:24px;border-bottom:1px solid #ffffff14;gap:14px}.ep.us .card2:last-child{border-bottom:0}
+.ep.us .card2.dz{box-shadow:none;border:1px solid #f23f4366;border-radius:8px;padding:16px}
+.ep.us .ush{font-size:18px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--t1,#f2f3f5)}
+.ep.us .card2>.btn,.ep.us .card2>button.btn{justify-self:start;padding:0 20px}
+.ep.us .card2 input:not([type=range]){background:var(--p1,#1e1f22);padding:11px 12px}
+.ep.us .tgl2{padding:6px 0}.ep.us .tgl2 b{font-size:15px;font-weight:600}.ep.us .tgl2 small{margin-top:2px;line-height:1.35}
+.sfxp{display:grid;gap:8px}
+.ep.us .epx{top:36px;right:44px}.ep.us .epx::after{content:'ESC';position:absolute;top:40px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;color:var(--t4,#949ba4)}
+@media(max-width:760px){.ep.us{grid-template-columns:1fr}.ep.us .epl{align-items:stretch;padding:56px 12px 12px}.ep.us .epl>*{width:100%}.ep.us .usr{padding:24px 16px 80px}.ep.us .epx::after{display:none}}
 `;document.head.append(s)})();

@@ -67,11 +67,11 @@ module.exports=({app,q,need,err,bad,wss,RL})=>{
   await q('update users set avatar=$1 where id=$2',[b,req.u.id]);res.json({})});
  app.delete('/api/avatar',need,async(req,res)=>{await q('update users set avatar=null where id=$1',[req.u.id]);res.json({})});
  app.delete('/api/banner',need,async(req,res)=>{await q('update users set banner=null where id=$1',[req.u.id]);res.json({})});
- app.get('/api/avatar/:id',need,async(req,res)=>{const[u]=await q('select avatar from users where id=$1',[+req.params.id]);if(!u||!u.avatar)return res.sendStatus(404);
-  res.type(mime(u.avatar)).set('Cache-Control','private, max-age=300').send(u.avatar)});
+ app.get('/api/avatar/:id',need,async(req,res)=>{if(await require('./imgcache')(q,req,res,'select md5(avatar) h from users where id=$1',[+req.params.id]))return;const[u]=await q('select avatar from users where id=$1',[+req.params.id]);if(!u||!u.avatar)return res.sendStatus(404);
+  res.type(mime(u.avatar)).set('Cache-Control','private, max-age=3600, stale-while-revalidate=86400').send(u.avatar)});
 
  app.put('/api/banner',need,async(req,res)=>{const b=Buffer.from(String(req.body.data||''),'base64');if(b.length<100||b.length>450000||!mime(b))return err(res,'Use a PNG/JPEG/WebP/GIF under 450KB');await q('update users set banner=$1 where id=$2',[b,req.u.id]);res.json({})});
- app.get('/api/banner/:id',need,async(req,res)=>{const[u]=await q('select banner from users where id=$1',[+req.params.id]);if(!u||!u.banner)return res.sendStatus(404);res.type(mime(u.banner)).set('Cache-Control','private, max-age=300').send(u.banner)});
+ app.get('/api/banner/:id',need,async(req,res)=>{if(await require('./imgcache')(q,req,res,'select md5(banner) h from users where id=$1',[+req.params.id]))return;const[u]=await q('select banner from users where id=$1',[+req.params.id]);if(!u||!u.banner)return res.sendStatus(404);res.type(mime(u.banner)).set('Cache-Control','private, max-age=3600, stale-while-revalidate=86400').send(u.banner)});
  app.put('/api/bio',need,async(req,res)=>{await q('update users set bio=$1 where id=$2',[String(req.body.bio||'').slice(0,190),req.u.id]);res.json({})});
  app.put('/api/status',need,async(req,res)=>{const s=String(req.body.status||'online'),t=String(req.body.text||'').trim().slice(0,60);
   if(!['online','idle','dnd','invisible'].includes(s))return err(res,'Bad status');if(t&&bad(t))return err(res,'That status isn\'t allowed.');
