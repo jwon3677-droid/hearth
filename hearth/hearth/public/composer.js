@@ -35,7 +35,7 @@ async function vote(m,i,multi){const mine=n=>((m.rx||[]).find(x=>x.e===NUMK[n])|
  await reactMsg(m.id,NUMK[i])}
 function pollNode(m,p){const w=el('div','poll'),cnt=p.o.map((_,i)=>((m.rx||[]).find(x=>x.e===NUMK[i])||{u:[]}).u),voters=new Set(cnt.flat()),max=Math.max(1,...cnt.map(c=>c.length));
  w.append(el('div','pq',p.q),el('div','pm',p.m?'Select one or more answers':'Select one answer'));
- p.o.slice(0,10).forEach((t,i)=>{const mine=cnt[i].includes(me.id),b=el('button','po'+(mine?' on':'')),bar=el('i'),l=el('span','pl'),n=el('span','pn',cnt[i].length+(cnt[i].length===1?' vote':' votes'));
+ p.o.slice(0,10).forEach((t,i)=>{const mine=cnt[i].includes(me.id),b=el('button','pollo'+(mine?' on':'')),bar=el('i'),l=el('span','pl'),n=el('span','pn',cnt[i].length+(cnt[i].length===1?' vote':' votes'));
   b.type='button';bar.style.width=(cnt[i].length/Math.max(1,voters.size)*100)+'%';l.append(mine?el('b','pk','✓'):'',t);b.append(bar,l,n);b.onclick=e=>{e.stopPropagation();vote(m,i,!!p.m).catch(fail)};w.append(b)});
  w.append(el('div','pf',voters.size+(voters.size===1?' voter':' voters')));return w}
 

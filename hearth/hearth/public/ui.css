@@ -155,8 +155,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 /* ---- polls ---- */
 .poll{max-width:420px;margin-top:4px;padding:12px;border:1px solid #3f4147;border-radius:8px;background:#2b2d31}.pq{font-weight:700;font-size:16px;color:#f2f3f5;word-break:break-word}.pm{font-size:12px;color:#949ba4;margin:2px 0 10px}
-.po{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-top:6px;padding:9px 12px;border-radius:6px;background:#1e1f22!important;color:#dbdee1;text-align:left;overflow:hidden;border:1px solid transparent}.po:hover{border-color:#4e5058}.po.on{border-color:var(--ac)}
-.po i{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--ac) 35%,transparent);transition:width .25s;z-index:0}.po>span{position:relative;z-index:1}.pl{flex:1;min-width:0;word-break:break-word}.pk{color:var(--ac);margin-right:6px}.pn{font-size:12px;color:#b5bac1;white-space:nowrap}
+.pollo{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-top:6px;padding:9px 12px;border-radius:6px;background:#1e1f22!important;color:#dbdee1;text-align:left;overflow:hidden;border:1px solid transparent}.pollo:hover{border-color:#4e5058}.pollo.on{border-color:var(--ac)}
+.pollo i{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--ac) 35%,transparent);transition:width .25s;z-index:0}.pollo>span{position:relative;z-index:1}.pl{flex:1;min-width:0;word-break:break-word}.pk{color:var(--ac);margin-right:6px}.pn{font-size:12px;color:#b5bac1;white-space:nowrap}
 .pf{margin-top:10px;font-size:12px;color:#949ba4}.ispoll .rx{display:none}
 .pollopts{display:grid;gap:8px}.pollopts input{height:40px}.pollmulti{display:flex;gap:8px;align-items:center;margin-top:12px;color:#dbdee1;cursor:pointer}.pollmulti input{width:auto;height:auto}
 .vrec{display:flex;align-items:center;gap:12px;padding:12px;background:#1e1f22;border-radius:8px}.vrec .rd{width:12px;height:12px;border-radius:50%;background:#f23f43;animation:vpulse 1s infinite}.vrec.done{display:none}.vrec .vt{font-variant-numeric:tabular-nums;font-size:18px;flex:1}
